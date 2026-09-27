@@ -1,23 +1,33 @@
 import { Link } from 'react-router-dom'
-
+import logo from '../assets/logo-placeholder.jpg'
 function Navbar() {
-  return (
-    <nav className="navigationbar">
+    return (
+        <nav className="navigationbar">
 
-      <div className="logo-container">
-        <span>MEKAKEL</span>
-      </div>
+          <div className="logo-container">
 
-      <div className="navigationlinks">
-        <Link to="/">Home</Link>
-        <Link to="/about">About</Link>
-        <Link to="/how-it-works">How It Works</Link>
-        <Link to="/login">Login</Link>
-        <Link to="/register">Register</Link>
-      </div>
+    <img src={logo} alt="MEKAKEL logo" className="logo" />
 
-    </nav>
-  )
+    <span>MEKAKEL</span>
+
+</div>
+
+            <div className="navigationlinks">
+
+                <Link to="/">Home</Link>
+
+                <a href="#about">About</a>
+
+                <a href="#how-it-works">How It Works</a>
+
+                <Link to="/login">Login</Link>
+
+                <Link to="/register">Register</Link>
+
+            </div>
+
+        </nav>
+    )
 }
 
 export default Navbar
