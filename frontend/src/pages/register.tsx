@@ -47,9 +47,7 @@ function Register() {
     hospitalPassword === hospitalConfirmPassword
 
 
-  /* =========================================================
-     1. CHOOSE REGISTRATION TYPE
-     ========================================================= */
+  /*  1. CHOOSE REGISTRATION TYPE */
 
   if (!registrationType) {
     return (
@@ -109,9 +107,7 @@ function Register() {
   }
 
 
-  /* =========================================================
-     2. BEFORE YOU REGISTER - INDIVIDUAL DONOR
-     ========================================================= */
+  /* 2. BEFORE YOU REGISTER - INDIVIDUAL DONOR */
 
   if (registrationType === 'donor' && !showRegistration) {
     return (
@@ -272,9 +268,7 @@ function Register() {
   }
 
 
-  /* =========================================================
-     3. HOSPITAL / CLINIC REGISTRATION
-     ========================================================= */
+  /* 3. HOSPITAL / CLINIC REGISTRATION*/
 
   if (registrationType === 'hospital') {
     return (
@@ -656,6 +650,744 @@ function Register() {
     )
   }
 
- return null
+
+
+
+
+ /*  4. INDIVIDUAL DONOR REGISTRATION */
+
+  return (
+    <main className="register-page">
+
+      <div className="register-container">
+
+        <h1>Individual Donor Registration</h1>
+
+        <p className="register-introduction">
+          Register with MEKAKEL as an individual volunteer donor.
+          Your information and medical report will be reviewed before
+          you become a Verified Active Donor.
+        </p>
+
+
+        <form className="register-form">
+
+
+          {/* 1. IDENTITY INFORMATION */}
+
+          <section className="form-section">
+
+            <h2>1. Identity Information</h2>
+
+
+            <div className="form-group">
+
+              <label htmlFor="faydaId">
+                Fayda ID
+              </label>
+
+              <input
+                type="text"
+                id="faydaId"
+                name="faydaId"
+                placeholder="Enter your Fayda ID"
+                required
+              />
+
+              <small>
+                Fayda verification is currently simulated for this MVP.
+                Actual Fayda integration will be added in a future version.
+              </small>
+
+            </div>
+
+
+            <div className="fayda-notice">
+
+              <p>
+                Your identity will be checked through the MEKAKEL
+                mock Fayda verification process.
+              </p>
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="fullName">
+                Full Name
+              </label>
+
+              <input
+                type="text"
+                id="fullName"
+                name="fullName"
+                value={fullName}
+                onChange={(e) =>
+                  setFullName(e.target.value.toUpperCase())
+                }
+                placeholder="Enter your full name"
+                required
+              />
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="email">
+                Email
+              </label>
+
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="Enter your email"
+                required
+              />
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="phone">
+                Primary Phone Number
+              </label>
+
+              <div className="phone-input">
+
+                <select
+                  id="countryCode"
+                  name="countryCode"
+                  required
+                >
+
+                  <option value="+251">
+                    Ethiopia (+251)
+                  </option>
+
+                  <option value="+254">
+                    Kenya (+254)
+                  </option>
+
+                  <option value="+255">
+                    Tanzania (+255)
+                  </option>
+
+                  <option value="+256">
+                    Uganda (+256)
+                  </option>
+
+                  <option value="+20">
+                    Egypt (+20)
+                  </option>
+
+                  <option value="+27">
+                    South Africa (+27)
+                  </option>
+
+                  <option value="+44">
+                    United Kingdom (+44)
+                  </option>
+
+                  <option value="+1">
+                    United States (+1)
+                  </option>
+
+                  <option value="+971">
+                    UAE (+971)
+                  </option>
+
+                  <option value="+966">
+                    Saudi Arabia (+966)
+                  </option>
+
+                  <option value="+91">
+                    India (+91)
+                  </option>
+
+                </select>
+
+
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  placeholder="Enter phone number"
+                  required
+                />
+</div>
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="additionalPhone">
+                Additional Phone Number
+              </label>
+
+              <div className="phone-input">
+
+                <select
+                  id="additionalCountryCode"
+                  name="additionalCountryCode"
+                >
+
+                  <option value="+251">
+                    Ethiopia (+251)
+                  </option>
+
+                  <option value="+254">
+                    Kenya (+254)
+                  </option>
+
+                  <option value="+255">
+                    Tanzania (+255)
+                  </option>
+
+                  <option value="+256">
+                    Uganda (+256)
+                  </option>
+
+                  <option value="+20">
+                    Egypt (+20)
+                  </option>
+
+                  <option value="+27">
+                    South Africa (+27)
+                  </option>
+
+                  <option value="+44">
+                    United Kingdom (+44)
+                  </option>
+
+                  <option value="+1">
+                    United States (+1)
+                  </option>
+
+                  <option value="+971">
+                    UAE (+971)
+                  </option>
+
+                  <option value="+966">
+                    Saudi Arabia (+966)
+                  </option>
+
+                  <option value="+91">
+                    India (+91)
+                  </option>
+
+                </select>
+
+
+                <input
+                  type="tel"
+                  id="additionalPhone"
+                  name="additionalPhone"
+                  placeholder="Enter additional phone number"
+                />
+
+              </div>
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="address">
+                Address
+              </label>
+
+              <input
+                type="text"
+                id="address"
+                name="address"
+                placeholder="Enter your address"
+                required
+              />
+
+            </div>
+
+          </section>
+
+
+          {/* 2. ACCOUNT INFORMATION */}
+
+          <section className="form-section">
+
+            <h2>2. Account Information</h2>
+
+
+            <div className="form-group">
+
+              <label htmlFor="password">
+                Password
+              </label>
+
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={password}
+                onChange={(e) =>
+                  setPassword(e.target.value)
+                }
+                placeholder="Create a strong password"
+                minLength={8}
+                required
+              />
+
+              <small>
+                Use at least 8 characters with uppercase and lowercase
+                letters, numbers, and special characters.
+              </small>
+
+              <small>
+                Example: Abcd@1234
+              </small>
+
+
+              {password.length > 0 && !passwordIsStrong && (
+                <small className="password-warning">
+                  Your password is not strong enough.
+                  Add uppercase letters, lowercase letters,
+                  numbers, and a special character.
+                </small>
+              )}
+
+
+              {passwordIsStrong && (
+                <small className="password-success">
+                  Strong password.
+                </small>
+              )}
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="confirmPassword">
+                Confirm Password
+              </label>
+
+              <input
+                type="password"
+                id="confirmPassword"
+                name="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) =>
+                  setConfirmPassword(e.target.value)
+                }
+                placeholder="Confirm your password"
+                required
+              />
+ {confirmPassword.length > 0 && !passwordsMatch && (
+                <small className="password-warning">
+                  Passwords do not match.
+                </small>
+              )}
+
+
+              {passwordsMatch && (
+                <small className="password-success">
+                  Passwords match.
+                </small>
+              )}
+
+            </div>
+
+          </section>
+
+
+          {/* 3. PHYSICAL INFORMATION */}
+
+          <section className="form-section">
+
+            <h2>3. Physical Information</h2>
+
+
+            <div className="form-group">
+
+              <label htmlFor="age">
+                Age
+              </label>
+
+              <input
+                type="number"
+                id="age"
+                name="age"
+                min="1"
+                placeholder="Enter your age"
+                required
+              />
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="weight">
+                Weight (kg)
+              </label>
+
+              <input
+                type="number"
+                id="weight"
+                name="weight"
+                min="1"
+                step="0.1"
+                placeholder="Enter your weight"
+                required
+              />
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="height">
+                Height (cm)
+              </label>
+
+              <input
+                type="number"
+                id="height"
+                name="height"
+                min="1"
+                step="0.1"
+                placeholder="Enter your height"
+                required
+              />
+
+            </div>
+
+          </section>
+
+
+          {/* 4. DONATION AVAILABILITY */}
+
+          <section className="form-section">
+
+            <h2>4. Donation Availability</h2>
+
+
+            <div className="form-group">
+
+              <label htmlFor="availabilityDate">
+                Available Date
+              </label>
+
+              <input
+                type="date"
+                id="availabilityDate"
+                name="availabilityDate"
+                required
+              />
+
+              <small>
+                Select the year, month, and day you are available.
+              </small>
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="availabilityPeriod">
+                Available Period
+              </label>
+
+              <select
+                id="availabilityPeriod"
+                name="availabilityPeriod"
+                required
+              >
+
+                <option value="">
+                  Select period
+                </option>
+
+                <option value="morning">
+                  Morning
+                </option>
+
+                <option value="afternoon">
+                  Afternoon
+                </option>
+
+                <option value="evening">
+                  Evening
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="availabilityHour">
+                Available Hour
+              </label>
+
+              <input
+                type="time"
+                id="availabilityHour"
+                name="availabilityHour"
+                required
+              />
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="currentAvailability">
+                Current Availability
+              </label>
+
+              <select
+                id="currentAvailability"
+                name="currentAvailability"
+                required
+              >
+
+                <option value="">
+                  Select availability
+                </option>
+
+                <option value="available">
+                  Available to Donate
+                </option>
+
+                <option value="unavailable">
+                  Currently Unavailable
+                </option>
+
+              </select>
+
+            </div>
+
+          </section>
+{/* 5. MEDICAL REPORT */}
+
+          <section className="form-section">
+
+            <h2>5. Medical Report</h2>
+
+
+            <p className="section-description">
+              Upload a valid medical screening report issued by
+              an authorized medical facility.
+            </p>
+
+
+            <div className="medical-requirements">
+
+              <h3>The report must show:</h3>
+
+              <ul>
+
+                <li>Negative HIV result</li>
+
+                <li>Negative Hepatitis B result</li>
+
+                <li>Negative Hepatitis C result</li>
+
+                <li>Negative Syphilis result</li>
+
+                <li>Confirmed ABO and Rh blood type</li>
+
+                <li>Testing facility name</li>
+
+                <li>Test date</li>
+
+              </ul>
+
+            </div>
+
+
+            <div className="form-group">
+
+              <label htmlFor="reportType">
+                Choose Report File Type
+              </label>
+
+              <select
+                id="reportType"
+                name="reportType"
+                value={reportType}
+                onChange={(e) =>
+                  setReportType(e.target.value)
+                }
+                required
+              >
+
+                <option value="">
+                  Select file type
+                </option>
+
+                <option value="image">
+                  Image
+                </option>
+
+                <option value="pdf">
+                  PDF
+                </option>
+
+              </select>
+
+            </div>
+
+
+            {reportType && (
+
+              <div className="form-group">
+
+                <label htmlFor="medicalReport">
+                  Upload Medical Report
+                </label>
+
+                <input
+                  type="file"
+                  id="medicalReport"
+                  name="medicalReport"
+                  accept={
+                    reportType === 'image'
+                      ? 'image/*'
+                      : '.pdf,application/pdf'
+                  }
+                  required
+                />
+
+                <small>
+                  {reportType === 'image'
+                    ? 'Only image files are accepted.'
+                    : 'Only PDF files are accepted.'
+                  }
+                </small>
+
+              </div>
+
+            )}
+
+
+            <div className="medical-note">
+
+              <p>
+                MEKAKEL does not perform laboratory testing.
+                Your medical report will be reviewed by an authorized
+                Doctor/Verifier.
+              </p>
+
+            </div>
+
+          </section>
+
+
+          {/* 6. DONATION HISTORY */}
+
+          <section className="form-section">
+
+            <h2>6. Donation History</h2>
+
+
+            <div className="form-group">
+
+              <label htmlFor="lastDonation">
+                Last Donation Date
+              </label>
+
+              <input
+                type="date"
+                id="lastDonation"
+                name="lastDonation"
+              />
+
+              <small>
+                Leave this empty if you have never donated blood.
+              </small>
+
+            </div>
+
+          </section>
+
+
+          {/* 7. VERIFICATION PROCESS */}
+
+          <section className="verification-notice">
+
+            <h2>7. Verification Process</h2>
+
+            <p>
+              Submitting this form does not immediately make you
+              a Verified Active Donor.
+            </p>
+
+            <p>
+              Your identity, information, and medical report must
+              first be reviewed by an authorized Doctor/Verifier.
+            </p>
+<p>
+              The next eligible donation date will be calculated
+              automatically by the system based on your last donation
+              date and the configured eligibility rules.
+            </p>
+
+            <p>
+              Your medical information will only be accessible to
+              authorized personnel according to their role and permissions.
+            </p>
+
+          </section>
+
+
+          {/* SUBMIT */}
+
+          <button
+            type="submit"
+            className="register-button"
+            disabled={
+              !passwordIsStrong ||
+              !passwordsMatch
+            }
+          >
+            Submit Donor Registration
+          </button>
+
+
+          <button
+            type="button"
+            className="back-button"
+            onClick={() => {
+              setShowRegistration(false)
+              setMedicalWarning(false)
+            }}
+          >
+            Back
+          </button>
+
+
+          <p className="login-link">
+
+            Already have an account?{' '}
+
+            <Link to="/login">
+              Login
+            </Link>
+
+          </p>
+
+        </form>
+
+      </div>
+
+
+</main>
+)
 }
 export default Register
