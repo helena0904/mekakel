@@ -276,3 +276,378 @@ body {
     margin: 10px 0;
 }
 
+
+
+
+
+
+
+
+/* REGISTER PAGE */
+
+* {
+    box-sizing: border-box;
+}
+
+.register-page {
+    padding: 4rem 2rem;
+    background-color: #f8f9fa;
+    min-height: 80vh;
+}
+
+.register-container {
+    width: 90%;
+    max-width: 800px;
+    margin: auto;
+    padding: 40px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.register-container h1 {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.register-introduction {
+    text-align: center;
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+
+/* REGISTRATION CHOICE */
+
+.registration-choice {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.registration-choice .register-button {
+    flex: 1;
+    min-width: 200px;
+}
+
+
+/* BEFORE YOU REGISTER */
+
+.before-register-page {
+    padding: 4rem 2rem;
+    background-color: #f8f9fa;
+    min-height: 80vh;
+}
+
+.before-register-container {
+    width: 90%;
+    max-width: 800px;
+    margin: auto;
+    padding: 40px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.before-register-container h1 {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.before-register-introduction {
+    text-align: center;
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+
+/* MEDICAL WARNING */
+
+.medical-warning {
+    padding: 25px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background-color: white;
+}
+
+.medical-warning h2 {
+    margin-bottom: 15px;
+}
+
+.medical-warning h3 {
+    margin-top: 25px;
+    margin-bottom: 10px;
+}
+
+.medical-warning p {
+    color: #555;
+    line-height: 1.7;
+}
+
+.medical-warning ul {
+    padding-left: 25px;
+    margin-bottom: 20px;
+}
+
+.medical-warning li {
+    margin-bottom: 8px;
+}
+
+
+/* DO NOT REGISTER */
+
+.do-not-register {
+    padding: 20px;
+    margin-top: 25px;
+    background-color: #fff3f3;
+    border: 1px solid #e0b4b4;
+    border-radius: 8px;
+}
+
+.do-not-register h3 {
+    margin-top: 0;
+}
+
+.do-not-register p {
+    margin-bottom: 0;
+    line-height: 1.6;
+}
+
+
+/* MEDICAL INFORMATION */
+
+.medical-information-note {
+    padding: 20px;
+    margin-top: 25px;
+    background-color: #f1f8ff;
+    border-radius: 8px;
+}
+
+.medical-information-note h3 {
+    margin-top: 0;
+}
+
+.medical-information-note p {
+    color: #555;
+    line-height: 1.6;
+}
+
+
+/* BEFORE REGISTER CONTINUE */
+
+.before-register-continue {
+    margin-top: 30px;
+    padding: 25px;
+    text-align: center;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+}
+
+.before-register-continue h2 {
+    margin-bottom: 10px;
+}
+
+.before-register-continue p {
+    color: #666;
+    margin-bottom: 25px;
+    line-height: 1.6;
+}
+
+
+/* CHECKBOX */
+
+.warning-checkbox {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 25px;
+}
+
+.warning-checkbox input {
+    width: 18px;
+    height: 18px;
+}
+
+
+/* FORM */
+
+.register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.form-section {
+    padding: 25px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+}
+
+.form-section h2 {
+    margin-bottom: 20px;
+    color: #0056b3;
+}
+
+.section-description {
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+
+/* FORM GROUP */
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+}
+
+.form-group textarea {
+    resize: vertical;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #0056b3;
+}
+
+.form-group small {
+    color: #777;
+    line-height: 1.5;
+}
+
+
+/* PHONE NUMBER */
+
+.phone-input {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.phone-input select {
+    width: 35%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.phone-input input {
+    width: 65%;
+}
+
+
+/* PASSWORD */
+
+.password-warning {
+    color: #b00020 !important;
+}
+
+.password-success {
+    color: #198754 !important;
+}
+
+
+/* VERIFICATION */
+
+.verification-notice {
+    padding: 20px;
+    background-color: #f1f8ff;
+    border: 1px solid #b8d8f5;
+    border-radius: 8px;
+}
+
+.verification-notice h2 {
+    margin-bottom: 10px;
+    color: #0056b3;
+}
+
+.verification-notice p {
+    color: #555;
+    margin-bottom: 10px;
+    line-height: 1.6;
+}
+
+
+/* BUTTON */
+
+.register-button {
+    width: 100%;
+    padding: 13px 24px;
+    border: none;
+    border-radius: 6px;
+    background-color: #0056b3;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.register-button:hover {
+    background-color: #004494;
+}
+
+.register-button:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+}
+
+
+/* BACK BUTTON */
+
+.back-button {
+    width: 100%;
+    padding: 13px 24px;
+    border: 1px solid #0056b3;
+    border-radius: 6px;
+    background-color: white;
+    color: #0056b3;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.back-button:hover {
+    background-color: #0056b3;
+    color: white;
+}
+
+
+/* LOGIN LINK */
+
+.login-link {
+    text-align: center;
+    margin-top: 10px;
+}
+
+.login-link a {
+    color: #0056b3;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.login-link a:hover {
+    text-decoration: underline;
+}
