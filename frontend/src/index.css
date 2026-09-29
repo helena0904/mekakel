@@ -1,1 +1,278 @@
 @import "tailwindcss";
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+}
+
+
+/* NAVBAR */
+
+.navigationbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logo-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: bold;
+    font-size: 20px;
+}
+
+.logo {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.navigationlinks {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.navigationlinks a {
+    text-decoration: none;
+    color: inherit;
+}
+
+.navigationlinks a:hover {
+    color: #0056b3;
+}
+
+
+/* HERO */
+
+.hero {
+    position: relative;
+    width: 100%;
+    min-height: 500px;
+    overflow: hidden;
+}
+
+.hero-image {
+    width: 100%;
+    height: 500px;
+    object-fit: cover;
+    display: block;
+}
+
+.hero-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 90%;
+    max-width: 900px;
+    transform: translate(-50%, -50%);
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+}
+
+.hero-content h1 {
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+.hero-content p {
+    font-size: 18px;
+    margin-bottom: 30px;
+}
+
+
+/* BUTTONS */
+
+.hero-buttons {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.hero-buttons button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 16px;
+    background-color: #0056b3;
+    color: white;
+}
+
+.hero-buttons button:hover {
+    background-color: #004494;
+}
+
+.hero-buttons button:nth-child(2) {
+    background-color: #28a745;
+}
+
+
+/* SECTIONS */
+
+.introduction,
+.users,
+.why-mekakel,
+.features,
+.call-to-action {
+    padding: 4rem 2rem;
+}
+
+.introduction,
+.users,
+.why-mekakel,
+.call-to-action {
+    text-align: center;
+}
+
+.introduction h2,
+.users h2,
+.why-mekakel h2,
+.features h2,
+.call-to-action h2 {
+    font-size: 32px;
+    margin-bottom: 30px;
+}
+
+
+/* ABOUT */
+
+.about-container {
+    width: 90%;
+    max-width: 900px;
+    margin: auto;
+}
+
+.about-container p {
+    font-size: 18px;
+    line-height: 1.8;
+    color: #555;
+}
+
+
+/* USERS */
+
+.users-container {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.user-card {
+    width: 250px;
+    max-width: 100%;
+    padding: 25px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background-color: white;
+}
+
+.user-card h3 {
+    font-size: 22px;
+    margin-bottom: 15px;
+    color: #0056b3;
+}
+
+.user-card p {
+    color: #666;
+}
+
+
+/* WHY MEKAKEL */
+
+.why-container {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.why-container div {
+    width: 280px;
+    max-width: 100%;
+}
+
+.why-container h3 {
+    font-size: 22px;
+    margin-bottom: 15px;
+    color: #0056b3;
+}
+
+.why-container p {
+    color: #666;
+}
+
+
+/* HOW IT WORKS */
+
+.features {
+    text-align: left;
+}
+
+.features h2 {
+    text-align: center;
+}
+
+.how-container {
+    width: 90%;
+    max-width: 900px;
+    margin: auto;
+}
+
+.how-container h3 {
+    font-size: 20px;
+    margin-top: 25px;
+    margin-bottom: 12px;
+    color: #0056b3;
+}
+
+.how-container p {
+    line-height: 1.8;
+    color: #555;
+    margin-bottom: 15px;
+}
+
+
+/* CALL TO ACTION */
+
+.call-to-action {
+    text-align: center;
+}
+
+.call-to-action p {
+    font-size: 18px;
+    margin-bottom: 25px;
+}
+
+.call-to-action .hero-buttons {
+    justify-content: center;
+}
+
+
+/* FOOTER */
+
+.footer {
+    padding: 3rem 2rem;
+    text-align: center;
+    background-color: #f8f9fa;
+    border-top: 1px solid #ddd;
+}
+
+.footer p {
+    margin: 10px 0;
+}
+
