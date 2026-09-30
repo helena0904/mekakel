@@ -706,3 +706,89 @@ body {
 .login-link a:hover {
     text-decoration: underline;
 }
+
+
+
+
+/* LOGIN PAGE */
+
+.login-page {
+    padding: 4rem 2rem;
+    background-color: #f8f9fa;
+    min-height: 80vh;
+}
+
+.login-container {
+    width: 90%;
+    max-width: 800px;
+    margin: auto;
+    padding: 40px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.login-container h1 {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.login-introduction {
+    text-align: center;
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+
+/* LOGIN CHOICE */
+
+.login-choice {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.login-choice-button {
+    flex: 1;
+    min-width: 200px;
+    padding: 15px 24px;
+    border: none;
+    border-radius: 6px;
+    background-color: #0056b3;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.login-choice-button:hover {
+    background-color: #004494;
+}
+
+
+/* LOGIN TYPE */
+
+.login-container h2 {
+    text-align: center;
+    margin-bottom: 25px;
+}
+
+
+/* BACK BUTTON */
+
+.back-button {
+    width: 100%;
+    padding: 13px 24px;
+    border: 1px solid #0056b3;
+    border-radius: 6px;
+    background-color: white;
+    color: #0056b3;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.back-button:hover {
+    background-color: #0056b3;
+    color: white;
+}
