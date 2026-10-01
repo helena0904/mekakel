@@ -792,3 +792,45 @@ body {
     background-color: #0056b3;
     color: white;
 }
+
+
+/* LOGIN FORM */
+
+.login-form-group {
+    margin-bottom: 20px;
+}
+
+.login-form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+}
+
+.login-form-group input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+}
+
+.login-form-group input:focus {
+    outline: none;
+    border-color: #0056b3;
+}
+
+.login-button {
+    width: 100%;
+    padding: 13px 24px;
+    margin-bottom: 15px;
+    border: none;
+    border-radius: 6px;
+    background-color: #0056b3;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.login-button:hover {
+    background-color: #004494;
+}
