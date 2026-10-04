@@ -682,6 +682,16 @@ body {
     cursor: not-allowed;
 }
 
+/*registration error*/
+
+.register-error {
+    color: #d32f2f;
+    background-color: #ffebee;
+    border: 1px solid #ef9a9a;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
 
 /* BACK BUTTON */
 
