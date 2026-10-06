@@ -19,6 +19,33 @@ enum AccountType {
   HOSPITAL
 }
 
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum DonorAvailability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum ReportType {
+  IMAGE
+  PDF
+}
+
 model User {
   id           Int         @id @default(autoincrement())
   email        String      @unique
@@ -29,4 +56,78 @@ model User {
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  donorProfile    DonorProfile?
+  hospitalProfile HospitalProfile?
+  medicalReports  MedicalReport[]
+}
+
+model DonorProfile {
+  id     Int @id @default(autoincrement())
+  userId Int @unique
+
+  faydaId         String? @unique
+  phone           String
+  additionalPhone String?
+  address         String
+
+  age    Int
+  weight Float
+  height Float
+
+  bloodType BloodType?
+
+  availabilityDate    DateTime?
+  availabilityPeriod  String?
+  availabilityHour    String?
+  currentAvailability DonorAvailability @default(UNAVAILABLE)
+
+  lastDonation DateTime?
+
+  verificationStatus VerificationStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  medicalReports MedicalReport[]
+}
+
+model HospitalProfile {
+  id     Int @id @default(autoincrement())
+  userId Int @unique
+
+  hospitalName    String
+  address         String
+  phone           String
+  additionalPhone String?
+
+  isVerified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MedicalReport {
+  id Int @id @default(autoincrement())
+
+  donorProfileId   Int
+  uploadedByUserId Int
+
+  reportType ReportType
+  fileUrl    String
+
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  rejectionReason    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+
+  uploadedBy User @relation(fields: [uploadedByUserId], references: [id], onDelete: Cascade)
 }
