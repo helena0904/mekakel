@@ -1,19 +1,49 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, type FormEvent } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { register } from '../services/auth.service'
 
 function Register() {
+  const navigate = useNavigate()
+
   const [registrationType, setRegistrationType] = useState('')
   const [showRegistration, setShowRegistration] = useState(false)
   const [medicalWarning, setMedicalWarning] = useState(false)
 
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
   /* INDIVIDUAL DONOR STATES */
 
+  const [faydaId, setFaydaId] = useState('')
   const [fullName, setFullName] = useState('')
-  const [reportType, setReportType] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [additionalPhone, setAdditionalPhone] = useState('')
+  const [address, setAddress] = useState('')
+
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
+  const [age, setAge] = useState('')
+  const [weight, setWeight] = useState('')
+  const [height, setHeight] = useState('')
+
+  const [availabilityDate, setAvailabilityDate] = useState('')
+  const [availabilityPeriod, setAvailabilityPeriod] = useState('')
+  const [availabilityHour, setAvailabilityHour] = useState('')
+  const [currentAvailability, setCurrentAvailability] = useState('')
+
+  const [reportType, setReportType] = useState('')
+const [, setMedicalReport] = useState<File | null>(null)
+  const [lastDonation, setLastDonation] = useState('')
+
   /* HOSPITAL / CLINIC STATES */
+
+  const [hospitalName, setHospitalName] = useState('')
+  const [institutionalEmail, setInstitutionalEmail] = useState('')
+  const [hospitalAddress, setHospitalAddress] = useState('')
+  const [hospitalPhone, setHospitalPhone] = useState('')
+  const [hospitalAdditionalPhone, setHospitalAdditionalPhone] = useState('')
 
   const [hospitalPassword, setHospitalPassword] = useState('')
   const [hospitalConfirmPassword, setHospitalConfirmPassword] = useState('')
@@ -46,8 +76,67 @@ function Register() {
     hospitalConfirmPassword.length > 0 &&
     hospitalPassword === hospitalConfirmPassword
 
+  /* DONOR SUBMIT */
 
-  /*  1. CHOOSE REGISTRATION TYPE */
+  const handleDonorSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault()
+
+    setError('')
+    setIsSubmitting(true)
+
+    try {
+      await register({
+        email: email.trim(),
+        password,
+        name: fullName.trim(),
+        accountType: 'INDIVIDUAL',
+      })
+
+      navigate('/login')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Registration failed'
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  /* HOSPITAL SUBMIT */
+
+  const handleHospitalSubmit = async (
+    e: FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault()
+
+    setError('')
+    setIsSubmitting(true)
+
+    try {
+      await register({
+        email: institutionalEmail.trim(),
+        password: hospitalPassword,
+        name: hospitalName.trim(),
+        accountType: 'HOSPITAL',
+      })
+
+      navigate('/login')
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Registration failed'
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  /* 1. CHOOSE REGISTRATION TYPE */
 
   if (!registrationType) {
     return (
@@ -60,7 +149,6 @@ function Register() {
           <p className="register-introduction">
             Please choose the type of account you want to create.
           </p>
-
 
           <section className="form-section">
 
@@ -76,7 +164,6 @@ function Register() {
                 Individual Donor
               </button>
 
-
               <button
                 type="button"
                 className="register-button"
@@ -89,15 +176,12 @@ function Register() {
 
           </section>
 
-
           <p className="login-link">
-
             Already have an account?{' '}
 
             <Link to="/login">
               Login
             </Link>
-
           </p>
 
         </div>
@@ -105,7 +189,6 @@ function Register() {
       </main>
     )
   }
-
 
   /* 2. BEFORE YOU REGISTER - INDIVIDUAL DONOR */
 
@@ -122,7 +205,6 @@ function Register() {
             with MEKAKEL, please read the following information carefully.
           </p>
 
-
           <section className="medical-warning">
 
             <h2>Important Medical Information</h2>
@@ -133,15 +215,10 @@ function Register() {
               any of the following conditions:
             </p>
 
-
             <ul>
-
               <li>HIV</li>
-
               <li>Hepatitis B</li>
-
               <li>Hepatitis C</li>
-
               <li>Syphilis</li>
 
               <li>
@@ -153,11 +230,8 @@ function Register() {
               </li>
 
               <li>Pregnancy</li>
-
               <li>Recent childbirth</li>
-
               <li>Current illness or infection</li>
-
               <li>Low body weight</li>
 
               <li>
@@ -165,17 +239,13 @@ function Register() {
               </li>
 
               <li>Recent blood donation</li>
-
               <li>Certain medical conditions</li>
-
               <li>Certain medications</li>
 
               <li>
                 Recent surgery or medical procedures
               </li>
-
             </ul>
-
 
             <div className="do-not-register">
 
@@ -188,7 +258,6 @@ function Register() {
               </p>
 
             </div>
-
 
             <div className="medical-information-note">
 
@@ -209,7 +278,6 @@ function Register() {
 
           </section>
 
-
           <section className="before-register-continue">
 
             <h2>Ready to Continue?</h2>
@@ -218,7 +286,6 @@ function Register() {
               If you have read and understood the information above,
               you can continue to the Individual Donor Registration form.
             </p>
-
 
             <label className="warning-checkbox">
 
@@ -237,7 +304,6 @@ function Register() {
 
             </label>
 
-
             <button
               type="button"
               className="register-button"
@@ -246,7 +312,6 @@ function Register() {
             >
               Continue to Registration
             </button>
-
 
             <button
               type="button"
@@ -267,8 +332,7 @@ function Register() {
     )
   }
 
-
-  /* 3. HOSPITAL / CLINIC REGISTRATION*/
+  /* 3. HOSPITAL / CLINIC REGISTRATION */
 
   if (registrationType === 'hospital') {
     return (
@@ -283,16 +347,22 @@ function Register() {
             blood availability and requests with other healthcare facilities.
           </p>
 
+          <form
+            className="register-form"
+            onSubmit={handleHospitalSubmit}
+          >
 
-          <form className="register-form">
-
+            {error && (
+              <div className="register-error">
+                {error}
+              </div>
+            )}
 
             {/* HOSPITAL / CLINIC INFORMATION */}
 
             <section className="form-section">
 
               <h2>1. Hospital / Clinic Information</h2>
-
 
               <div className="form-group">
 
@@ -304,12 +374,15 @@ function Register() {
                   type="text"
                   id="hospitalName"
                   name="hospitalName"
+                  value={hospitalName}
+                  onChange={(e) =>
+                    setHospitalName(e.target.value)
+                  }
                   placeholder="Enter hospital or clinic name"
                   required
                 />
 
               </div>
-
 
               <div className="form-group">
 
@@ -321,6 +394,10 @@ function Register() {
                   type="email"
                   id="institutionalEmail"
                   name="institutionalEmail"
+                  value={institutionalEmail}
+                  onChange={(e) =>
+                    setInstitutionalEmail(e.target.value)
+                  }
                   placeholder="Enter institutional email"
                   required
                 />
@@ -330,7 +407,6 @@ function Register() {
                 </small>
 
               </div>
-
 
               <div className="form-group">
 
@@ -342,12 +418,15 @@ function Register() {
                   type="text"
                   id="hospitalAddress"
                   name="hospitalAddress"
+                  value={hospitalAddress}
+                  onChange={(e) =>
+                    setHospitalAddress(e.target.value)
+                  }
                   placeholder="Enter hospital or clinic address"
                   required
                 />
 
               </div>
-
 
               <div className="form-group">
 
@@ -362,7 +441,6 @@ function Register() {
                     name="hospitalCountryCode"
                     required
                   >
-
                     <option value="+251">
                       Ethiopia (+251)
                     </option>
@@ -409,11 +487,14 @@ function Register() {
 
                   </select>
 
-
                   <input
                     type="tel"
                     id="hospitalPhone"
                     name="hospitalPhone"
+                    value={hospitalPhone}
+                    onChange={(e) =>
+                      setHospitalPhone(e.target.value)
+                    }
                     placeholder="Enter phone number"
                     required
                   />
@@ -421,7 +502,6 @@ function Register() {
                 </div>
 
               </div>
-
 
               <div className="form-group">
 
@@ -435,7 +515,6 @@ function Register() {
                     id="hospitalAdditionalCountryCode"
                     name="hospitalAdditionalCountryCode"
                   >
-
                     <option value="+251">
                       Ethiopia (+251)
                     </option>
@@ -482,11 +561,14 @@ function Register() {
 
                   </select>
 
-
                   <input
                     type="tel"
                     id="hospitalAdditionalPhone"
                     name="hospitalAdditionalPhone"
+                    value={hospitalAdditionalPhone}
+                    onChange={(e) =>
+                      setHospitalAdditionalPhone(e.target.value)
+                    }
                     placeholder="Enter additional phone number"
                   />
 
@@ -496,13 +578,11 @@ function Register() {
 
             </section>
 
-
-            {/* HOSPITAL ACCOUNT INFORMATION */}
+            {/* ACCOUNT INFORMATION */}
 
             <section className="form-section">
 
               <h2>2. Account Information</h2>
-
 
               <div className="form-group">
 
@@ -532,7 +612,6 @@ function Register() {
                   Example: Abcd@1234
                 </small>
 
-
                 {hospitalPassword.length > 0 &&
                   !hospitalPasswordIsStrong && (
                     <small className="password-warning">
@@ -542,7 +621,6 @@ function Register() {
                     </small>
                   )}
 
-
                 {hospitalPasswordIsStrong && (
                   <small className="password-success">
                     Strong password.
@@ -550,7 +628,6 @@ function Register() {
                 )}
 
               </div>
-
 
               <div className="form-group">
 
@@ -570,14 +647,12 @@ function Register() {
                   required
                 />
 
-
                 {hospitalConfirmPassword.length > 0 &&
                   !hospitalPasswordsMatch && (
                     <small className="password-warning">
                       Passwords do not match.
                     </small>
                   )}
-
 
                 {hospitalPasswordsMatch && (
                   <small className="password-success">
@@ -589,8 +664,7 @@ function Register() {
 
             </section>
 
-
-            {/* HOSPITAL VERIFICATION */}
+            {/* VERIFICATION */}
 
             <section className="verification-notice">
 
@@ -608,29 +682,30 @@ function Register() {
 
             </section>
 
-
-            {/* SUBMIT */}
-
             <button
               type="submit"
               className="register-button"
               disabled={
+                isSubmitting ||
                 !hospitalPasswordIsStrong ||
                 !hospitalPasswordsMatch
               }
             >
-              Submit Hospital / Clinic Registration
+              {isSubmitting
+                ? 'Creating Account...'
+                : 'Submit Hospital / Clinic Registration'}
             </button>
-
 
             <button
               type="button"
               className="back-button"
-              onClick={() => setRegistrationType('')}
+              onClick={() => {
+                setRegistrationType('')
+                setError('')
+              }}
             >
               Back
             </button>
-
 
             <p className="login-link">
 
@@ -650,11 +725,7 @@ function Register() {
     )
   }
 
-
-
-
-
- /*  4. INDIVIDUAL DONOR REGISTRATION */
+  /* 4. INDIVIDUAL DONOR REGISTRATION */
 
   return (
     <main className="register-page">
@@ -669,16 +740,22 @@ function Register() {
           you become a Verified Active Donor.
         </p>
 
+        <form
+          className="register-form"
+          onSubmit={handleDonorSubmit}
+        >
 
-        <form className="register-form">
-
+          {error && (
+            <div className="register-error">
+              {error}
+            </div>
+          )}
 
           {/* 1. IDENTITY INFORMATION */}
 
           <section className="form-section">
 
             <h2>1. Identity Information</h2>
-
 
             <div className="form-group">
 
@@ -690,6 +767,10 @@ function Register() {
                 type="text"
                 id="faydaId"
                 name="faydaId"
+                value={faydaId}
+                onChange={(e) =>
+                  setFaydaId(e.target.value)
+                }
                 placeholder="Enter your Fayda ID"
                 required
               />
@@ -701,7 +782,6 @@ function Register() {
 
             </div>
 
-
             <div className="fayda-notice">
 
               <p>
@@ -710,7 +790,6 @@ function Register() {
               </p>
 
             </div>
-
 
             <div className="form-group">
 
@@ -732,7 +811,6 @@ function Register() {
 
             </div>
 
-
             <div className="form-group">
 
               <label htmlFor="email">
@@ -743,12 +821,15 @@ function Register() {
                 type="email"
                 id="email"
                 name="email"
+                value={email}
+                onChange={(e) =>
+                  setEmail(e.target.value)
+                }
                 placeholder="Enter your email"
                 required
               />
 
             </div>
-
 
             <div className="form-group">
 
@@ -763,7 +844,6 @@ function Register() {
                   name="countryCode"
                   required
                 >
-
                   <option value="+251">
                     Ethiopia (+251)
                   </option>
@@ -810,18 +890,21 @@ function Register() {
 
                 </select>
 
-
                 <input
                   type="tel"
                   id="phone"
                   name="phone"
+                  value={phone}
+                  onChange={(e) =>
+                    setPhone(e.target.value)
+                  }
                   placeholder="Enter phone number"
                   required
                 />
-</div>
+
+              </div>
 
             </div>
-
 
             <div className="form-group">
 
@@ -835,7 +918,6 @@ function Register() {
                   id="additionalCountryCode"
                   name="additionalCountryCode"
                 >
-
                   <option value="+251">
                     Ethiopia (+251)
                   </option>
@@ -882,18 +964,20 @@ function Register() {
 
                 </select>
 
-
                 <input
                   type="tel"
                   id="additionalPhone"
                   name="additionalPhone"
+                  value={additionalPhone}
+                  onChange={(e) =>
+                    setAdditionalPhone(e.target.value)
+                  }
                   placeholder="Enter additional phone number"
                 />
 
               </div>
 
             </div>
-
 
             <div className="form-group">
 
@@ -905,6 +989,10 @@ function Register() {
                 type="text"
                 id="address"
                 name="address"
+                value={address}
+                onChange={(e) =>
+                  setAddress(e.target.value)
+                }
                 placeholder="Enter your address"
                 required
               />
@@ -913,13 +1001,11 @@ function Register() {
 
           </section>
 
-
           {/* 2. ACCOUNT INFORMATION */}
 
           <section className="form-section">
 
             <h2>2. Account Information</h2>
-
 
             <div className="form-group">
 
@@ -949,15 +1035,14 @@ function Register() {
                 Example: Abcd@1234
               </small>
 
-
-              {password.length > 0 && !passwordIsStrong && (
-                <small className="password-warning">
-                  Your password is not strong enough.
-                  Add uppercase letters, lowercase letters,
-                  numbers, and a special character.
-                </small>
-              )}
-
+              {password.length > 0 &&
+                !passwordIsStrong && (
+                  <small className="password-warning">
+                    Your password is not strong enough.
+                    Add uppercase letters, lowercase letters,
+                    numbers, and a special character.
+                  </small>
+                )}
 
               {passwordIsStrong && (
                 <small className="password-success">
@@ -966,7 +1051,6 @@ function Register() {
               )}
 
             </div>
-
 
             <div className="form-group">
 
@@ -985,12 +1069,13 @@ function Register() {
                 placeholder="Confirm your password"
                 required
               />
- {confirmPassword.length > 0 && !passwordsMatch && (
-                <small className="password-warning">
-                  Passwords do not match.
-                </small>
-              )}
 
+              {confirmPassword.length > 0 &&
+                !passwordsMatch && (
+                  <small className="password-warning">
+                    Passwords do not match.
+                  </small>
+                )}
 
               {passwordsMatch && (
                 <small className="password-success">
@@ -1002,13 +1087,11 @@ function Register() {
 
           </section>
 
-
           {/* 3. PHYSICAL INFORMATION */}
 
           <section className="form-section">
 
             <h2>3. Physical Information</h2>
-
 
             <div className="form-group">
 
@@ -1020,13 +1103,16 @@ function Register() {
                 type="number"
                 id="age"
                 name="age"
+                value={age}
+                onChange={(e) =>
+                  setAge(e.target.value)
+                }
                 min="1"
                 placeholder="Enter your age"
                 required
               />
 
             </div>
-
 
             <div className="form-group">
 
@@ -1038,6 +1124,10 @@ function Register() {
                 type="number"
                 id="weight"
                 name="weight"
+                value={weight}
+                onChange={(e) =>
+                  setWeight(e.target.value)
+                }
                 min="1"
                 step="0.1"
                 placeholder="Enter your weight"
@@ -1045,7 +1135,6 @@ function Register() {
               />
 
             </div>
-
 
             <div className="form-group">
 
@@ -1057,6 +1146,10 @@ function Register() {
                 type="number"
                 id="height"
                 name="height"
+                value={height}
+                onChange={(e) =>
+                  setHeight(e.target.value)
+                }
                 min="1"
                 step="0.1"
                 placeholder="Enter your height"
@@ -1067,13 +1160,11 @@ function Register() {
 
           </section>
 
-
           {/* 4. DONATION AVAILABILITY */}
 
           <section className="form-section">
 
             <h2>4. Donation Availability</h2>
-
 
             <div className="form-group">
 
@@ -1085,6 +1176,10 @@ function Register() {
                 type="date"
                 id="availabilityDate"
                 name="availabilityDate"
+                value={availabilityDate}
+                onChange={(e) =>
+                  setAvailabilityDate(e.target.value)
+                }
                 required
               />
 
@@ -1093,7 +1188,6 @@ function Register() {
               </small>
 
             </div>
-
 
             <div className="form-group">
 
@@ -1104,9 +1198,12 @@ function Register() {
               <select
                 id="availabilityPeriod"
                 name="availabilityPeriod"
+                value={availabilityPeriod}
+                onChange={(e) =>
+                  setAvailabilityPeriod(e.target.value)
+                }
                 required
               >
-
                 <option value="">
                   Select period
                 </option>
@@ -1127,7 +1224,6 @@ function Register() {
 
             </div>
 
-
             <div className="form-group">
 
               <label htmlFor="availabilityHour">
@@ -1138,11 +1234,14 @@ function Register() {
                 type="time"
                 id="availabilityHour"
                 name="availabilityHour"
+                value={availabilityHour}
+                onChange={(e) =>
+                  setAvailabilityHour(e.target.value)
+                }
                 required
               />
 
             </div>
-
 
             <div className="form-group">
 
@@ -1153,9 +1252,12 @@ function Register() {
               <select
                 id="currentAvailability"
                 name="currentAvailability"
+                value={currentAvailability}
+                onChange={(e) =>
+                  setCurrentAvailability(e.target.value)
+                }
                 required
               >
-
                 <option value="">
                   Select availability
                 </option>
@@ -1173,43 +1275,33 @@ function Register() {
             </div>
 
           </section>
-{/* 5. MEDICAL REPORT */}
+
+          {/* 5. MEDICAL REPORT */}
 
           <section className="form-section">
 
             <h2>5. Medical Report</h2>
-
 
             <p className="section-description">
               Upload a valid medical screening report issued by
               an authorized medical facility.
             </p>
 
-
             <div className="medical-requirements">
 
               <h3>The report must show:</h3>
 
               <ul>
-
                 <li>Negative HIV result</li>
-
                 <li>Negative Hepatitis B result</li>
-
                 <li>Negative Hepatitis C result</li>
-
                 <li>Negative Syphilis result</li>
-
                 <li>Confirmed ABO and Rh blood type</li>
-
                 <li>Testing facility name</li>
-
                 <li>Test date</li>
-
               </ul>
 
             </div>
-
 
             <div className="form-group">
 
@@ -1226,7 +1318,6 @@ function Register() {
                 }
                 required
               >
-
                 <option value="">
                   Select file type
                 </option>
@@ -1242,7 +1333,6 @@ function Register() {
               </select>
 
             </div>
-
 
             {reportType && (
 
@@ -1261,6 +1351,11 @@ function Register() {
                       ? 'image/*'
                       : '.pdf,application/pdf'
                   }
+                  onChange={(e) =>
+                    setMedicalReport(
+                      e.target.files?.[0] || null
+                    )
+                  }
                   required
                 />
 
@@ -1275,7 +1370,6 @@ function Register() {
 
             )}
 
-
             <div className="medical-note">
 
               <p>
@@ -1288,13 +1382,11 @@ function Register() {
 
           </section>
 
-
           {/* 6. DONATION HISTORY */}
 
           <section className="form-section">
 
             <h2>6. Donation History</h2>
-
 
             <div className="form-group">
 
@@ -1306,6 +1398,10 @@ function Register() {
                 type="date"
                 id="lastDonation"
                 name="lastDonation"
+                value={lastDonation}
+                onChange={(e) =>
+                  setLastDonation(e.target.value)
+                }
               />
 
               <small>
@@ -1315,7 +1411,6 @@ function Register() {
             </div>
 
           </section>
-
 
           {/* 7. VERIFICATION PROCESS */}
 
@@ -1332,7 +1427,8 @@ function Register() {
               Your identity, information, and medical report must
               first be reviewed by an authorized Doctor/Verifier.
             </p>
-<p>
+
+            <p>
               The next eligible donation date will be calculated
               automatically by the system based on your last donation
               date and the configured eligibility rules.
@@ -1345,20 +1441,21 @@ function Register() {
 
           </section>
 
-
           {/* SUBMIT */}
 
           <button
             type="submit"
             className="register-button"
             disabled={
+              isSubmitting ||
               !passwordIsStrong ||
               !passwordsMatch
             }
           >
-            Submit Donor Registration
+            {isSubmitting
+              ? 'Creating Account...'
+              : 'Submit Donor Registration'}
           </button>
-
 
           <button
             type="button"
@@ -1366,11 +1463,11 @@ function Register() {
             onClick={() => {
               setShowRegistration(false)
               setMedicalWarning(false)
+              setError('')
             }}
           >
             Back
           </button>
-
 
           <p className="login-link">
 
@@ -1386,8 +1483,8 @@ function Register() {
 
       </div>
 
-
-</main>
-)
+    </main>
+  )
 }
+
 export default Register
