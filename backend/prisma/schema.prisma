@@ -36,9 +36,19 @@ enum VerificationStatus {
   REJECTED
 }
 
-enum DonorAvailability {
+enum AvailabilityStatus {
   AVAILABLE
   UNAVAILABLE
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
 }
 
 enum ReportType {
@@ -77,10 +87,7 @@ model DonorProfile {
 
   bloodType BloodType?
 
-  availabilityDate    DateTime?
-  availabilityPeriod  String?
-  availabilityHour    String?
-  currentAvailability DonorAvailability @default(UNAVAILABLE)
+  currentAvailability AvailabilityStatus @default(UNAVAILABLE)
 
   lastDonation DateTime?
 
@@ -91,7 +98,21 @@ model DonorProfile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  availabilities DonorAvailability[]
   medicalReports MedicalReport[]
+
+  @@index([bloodType, currentAvailability, verificationStatus])
+}
+
+model DonorAvailability {
+  id             Int     @id @default(autoincrement())
+  donorProfileId Int
+  day            Weekday
+  time           String
+
+  donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([donorProfileId, day])
 }
 
 model HospitalProfile {
@@ -128,6 +149,9 @@ model MedicalReport {
   updatedAt DateTime @updatedAt
 
   donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation(fields: [uploadedByUserId], references: [id], onDelete: Cascade)
 
-  uploadedBy User @relation(fields: [uploadedByUserId], references: [id], onDelete: Cascade)
+  @@index([donorProfileId])
+  @@index([uploadedByUserId])
+  @@index([verificationStatus])
 }
