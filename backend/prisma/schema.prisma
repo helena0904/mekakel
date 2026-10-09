@@ -1,32 +1,133 @@
 generator client {
-  provider = "prisma-client-js"
+provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+provider = "postgresql"
 }
 
 enum UserRole {
-  DONOR
-  HOSPITAL_STAFF
-  DOCTOR
-  ADMIN
-  USER
+DONOR
+HOSPITAL_STAFF
+DOCTOR
+ADMIN
+USER
 }
 
 enum AccountType {
-  INDIVIDUAL
-  HOSPITAL
+INDIVIDUAL
+HOSPITAL
+}
+
+enum BloodType {
+A_POSITIVE
+A_NEGATIVE
+B_POSITIVE
+B_NEGATIVE
+AB_POSITIVE
+AB_NEGATIVE
+O_POSITIVE
+O_NEGATIVE
+}
+
+enum DayOfWeek {
+MONDAY
+TUESDAY
+WEDNESDAY
+THURSDAY
+FRIDAY
+SATURDAY
+SUNDAY
+}
+
+enum DonorAvailability {
+AVAILABLE
+UNAVAILABLE
+}
+
+enum ReportType {
+IMAGE
+PDF
+}
+
+enum VerificationStatus {
+PENDING
+VERIFIED
+REJECTED
 }
 
 model User {
-  id           Int         @id @default(autoincrement())
-  email        String      @unique
-  passwordHash String
-  name         String
-  accountType  AccountType
-  role         UserRole    @default(USER)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+id              Int              @id @default(autoincrement())
+email           String           @unique
+passwordHash    String
+name            String
+accountType     AccountType
+role            UserRole         @default(USER)
+isActive        Boolean          @default(true)
+createdAt       DateTime         @default(now())
+updatedAt       DateTime         @updatedAt
+donorProfile    DonorProfile?
+hospitalProfile HospitalProfile?
+medicalReports  MedicalReport[]
+}
+
+model DonorProfile {
+id                  Int                         @id @default(autoincrement())
+userId              Int                         @unique
+faydaId             String?                     @unique
+phone               String
+additionalPhone     String?
+address             String
+age                 Int
+weight              Float
+height              Float
+bloodType           BloodType?
+currentAvailability DonorAvailability            @default(UNAVAILABLE)
+lastDonation        DateTime?
+verificationStatus  VerificationStatus           @default(PENDING)
+createdAt           DateTime                    @default(now())
+updatedAt           DateTime                    @updatedAt
+availabilities      DonorAvailabilitySchedule[]
+user                User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+medicalReports      MedicalReport[]
+}
+
+model DonorAvailabilitySchedule {
+id             Int           @id @default(autoincrement())
+donorProfileId Int
+day            DayOfWeek
+time           String
+createdAt      DateTime      @default(now())
+updatedAt      DateTime      @updatedAt
+donorProfile   DonorProfile  @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+
+@@unique([donorProfileId, day])
+}
+
+model HospitalProfile {
+id              Int      @id @default(autoincrement())
+userId          Int      @unique
+hospitalName    String
+address         String
+phone           String
+additionalPhone String?
+isVerified      Boolean  @default(false)
+createdAt       DateTime @default(now())
+updatedAt       DateTime @updatedAt
+user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MedicalReport {
+id                 Int                @id @default(autoincrement())
+donorProfileId     Int
+uploadedByUserId   Int
+reportType         ReportType
+fileUrl            String
+verificationStatus VerificationStatus @default(PENDING)
+verifiedAt         DateTime?
+rejectionReason    String?
+createdAt          DateTime           @default(now())
+updatedAt          DateTime           @updatedAt
+donorProfile       DonorProfile       @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+uploadedBy         User               @relation(fields: [uploadedByUserId], references: [id], onDelete: Cascade)
 }

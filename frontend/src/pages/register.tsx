@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { register } from '../services/auth.service'
+import { login, register } from '../services/auth.service'
+import { useAuth } from '../hooks/useAuth'
 
 type Weekday =
   | 'MONDAY'
@@ -14,7 +15,7 @@ type Weekday =
 type AvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE'
 type ReportType = 'IMAGE' | 'PDF'
 
-const MAX_REPORT_SIZE = 5 * 1024 * 1024 // 5 MB, keep in sync with the backend
+const MAX_REPORT_SIZE = 5 * 1024 * 1024
 
 type Availability = {
   enabled: boolean
@@ -57,6 +58,7 @@ const emptyAvailability: Record<Weekday, Availability> = {
 
 function Register() {
   const navigate = useNavigate()
+  const { loginUser } = useAuth()
 
   const [registrationType, setRegistrationType] = useState('')
   const [showRegistration, setShowRegistration] = useState(false)
@@ -86,6 +88,7 @@ function Register() {
 
   const [currentAvailability, setCurrentAvailability] =
     useState<AvailabilityStatus | ''>('')
+
   const [reportType, setReportType] = useState<ReportType | ''>('')
   const [medicalReport, setMedicalReport] = useState<File | null>(null)
   const [lastDonation, setLastDonation] = useState('')
@@ -191,8 +194,13 @@ function Register() {
       return
     }
 
-    if (Number(weight) <= 0 || Number(height) <= 0) {
-      setError('Weight and height must be greater than zero.')
+    if (!Number.isFinite(Number(weight)) || Number(weight) <= 0) {
+      setError('Weight must be greater than zero.')
+      return
+    }
+
+    if (!Number.isFinite(Number(height)) || Number(height) <= 0) {
+      setError('Height must be greater than zero.')
       return
     }
 
@@ -206,11 +214,29 @@ function Register() {
       return
     }
 
+    if (
+      reportType === 'IMAGE' &&
+      !medicalReport.type.startsWith('image/')
+    ) {
+      setError('Please upload a valid image file.')
+      return
+    }
+
+    if (
+      reportType === 'PDF' &&
+      medicalReport.type !== 'application/pdf'
+    ) {
+      setError('Please upload a valid PDF file.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
+      const donorEmail = email.trim()
+
       await register({
-        email: email.trim(),
+        email: donorEmail,
         password,
         name: fullName.trim(),
         accountType: 'INDIVIDUAL',
@@ -230,12 +256,20 @@ function Register() {
         medicalReport,
       })
 
-      navigate('/login')
+      const response = await login({
+        email: donorEmail,
+        password,
+        accountType: 'INDIVIDUAL',
+      })
+
+      loginUser(response.token, response.user)
+
+      navigate('/donor-dashboard', { replace: true })
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : 'Registration failed.'
+          : 'Registration failed. Please try again.'
       )
     } finally {
       setIsSubmitting(false)
@@ -261,8 +295,10 @@ function Register() {
     setIsSubmitting(true)
 
     try {
+      const hospitalEmail = institutionalEmail.trim()
+
       await register({
-        email: institutionalEmail.trim(),
+        email: hospitalEmail,
         password: hospitalPassword,
         name: hospitalName.trim(),
         accountType: 'HOSPITAL',
@@ -274,12 +310,20 @@ function Register() {
           : undefined,
       })
 
-      navigate('/login')
+      const response = await login({
+        email: hospitalEmail,
+        password: hospitalPassword,
+        accountType: 'HOSPITAL',
+      })
+
+      loginUser(response.token, response.user)
+
+      navigate('/hospital-dashboard', { replace: true })
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : 'Registration failed.'
+          : 'Registration failed. Please try again.'
       )
     } finally {
       setIsSubmitting(false)
@@ -364,6 +408,7 @@ function Register() {
 
             <div className="do-not-register">
               <h3>Important</h3>
+
               <p>
                 Do not rely on this list to determine your eligibility.
                 An authorized medical professional must assess your suitability
@@ -1078,9 +1123,16 @@ function Register() {
                       ? 'image/*'
                       : '.pdf,application/pdf'
                   }
-                  onChange={(e) =>
-                    setMedicalReport(e.target.files?.[0] || null)
-                  }
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null
+                    setMedicalReport(file)
+
+                    if (file && file.size > MAX_REPORT_SIZE) {
+                      setError('Medical report must be 5 MB or smaller.')
+                    } else if (file) {
+                      setError('')
+                    }
+                  }}
                   required
                 />
 
@@ -1115,6 +1167,7 @@ function Register() {
                 id="lastDonation"
                 name="lastDonation"
                 value={lastDonation}
+                max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => setLastDonation(e.target.value)}
               />
 
