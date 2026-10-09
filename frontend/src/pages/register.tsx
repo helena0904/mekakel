@@ -2,23 +2,76 @@ import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { register } from '../services/auth.service'
 
+type Weekday =
+  | 'MONDAY'
+  | 'TUESDAY'
+  | 'WEDNESDAY'
+  | 'THURSDAY'
+  | 'FRIDAY'
+  | 'SATURDAY'
+  | 'SUNDAY'
+
+type AvailabilityStatus = 'AVAILABLE' | 'UNAVAILABLE'
+type ReportType = 'IMAGE' | 'PDF'
+
+const MAX_REPORT_SIZE = 5 * 1024 * 1024 // 5 MB, keep in sync with the backend
+
+type Availability = {
+  enabled: boolean
+  time: string
+}
+
+const countryCodes = [
+  { value: '+251', label: 'Ethiopia (+251)' },
+  { value: '+254', label: 'Kenya (+254)' },
+  { value: '+255', label: 'Tanzania (+255)' },
+  { value: '+256', label: 'Uganda (+256)' },
+  { value: '+20', label: 'Egypt (+20)' },
+  { value: '+27', label: 'South Africa (+27)' },
+  { value: '+44', label: 'United Kingdom (+44)' },
+  { value: '+1', label: 'United States (+1)' },
+  { value: '+971', label: 'UAE (+971)' },
+  { value: '+966', label: 'Saudi Arabia (+966)' },
+  { value: '+91', label: 'India (+91)' },
+]
+
+const weekdays: [Weekday, string][] = [
+  ['MONDAY', 'Monday'],
+  ['TUESDAY', 'Tuesday'],
+  ['WEDNESDAY', 'Wednesday'],
+  ['THURSDAY', 'Thursday'],
+  ['FRIDAY', 'Friday'],
+  ['SATURDAY', 'Saturday'],
+  ['SUNDAY', 'Sunday'],
+]
+
+const emptyAvailability: Record<Weekday, Availability> = {
+  MONDAY: { enabled: false, time: '' },
+  TUESDAY: { enabled: false, time: '' },
+  WEDNESDAY: { enabled: false, time: '' },
+  THURSDAY: { enabled: false, time: '' },
+  FRIDAY: { enabled: false, time: '' },
+  SATURDAY: { enabled: false, time: '' },
+  SUNDAY: { enabled: false, time: '' },
+}
+
 function Register() {
   const navigate = useNavigate()
 
   const [registrationType, setRegistrationType] = useState('')
   const [showRegistration, setShowRegistration] = useState(false)
   const [medicalWarning, setMedicalWarning] = useState(false)
-
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
-
-  /* INDIVIDUAL DONOR STATES */
 
   const [faydaId, setFaydaId] = useState('')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [countryCode, setCountryCode] = useState('+251')
   const [additionalPhone, setAdditionalPhone] = useState('')
+  const [additionalCountryCode, setAdditionalCountryCode] =
+    useState('+251')
   const [address, setAddress] = useState('')
 
   const [password, setPassword] = useState('')
@@ -28,27 +81,28 @@ function Register() {
   const [weight, setWeight] = useState('')
   const [height, setHeight] = useState('')
 
-  const [availabilityDate, setAvailabilityDate] = useState('')
-  const [availabilityPeriod, setAvailabilityPeriod] = useState('')
-  const [availabilityHour, setAvailabilityHour] = useState('')
-  const [currentAvailability, setCurrentAvailability] = useState('')
+  const [availability, setAvailability] =
+    useState<Record<Weekday, Availability>>(emptyAvailability)
 
-  const [reportType, setReportType] = useState('')
-const [, setMedicalReport] = useState<File | null>(null)
+  const [currentAvailability, setCurrentAvailability] =
+    useState<AvailabilityStatus | ''>('')
+  const [reportType, setReportType] = useState<ReportType | ''>('')
+  const [medicalReport, setMedicalReport] = useState<File | null>(null)
   const [lastDonation, setLastDonation] = useState('')
-
-  /* HOSPITAL / CLINIC STATES */
 
   const [hospitalName, setHospitalName] = useState('')
   const [institutionalEmail, setInstitutionalEmail] = useState('')
   const [hospitalAddress, setHospitalAddress] = useState('')
   const [hospitalPhone, setHospitalPhone] = useState('')
-  const [hospitalAdditionalPhone, setHospitalAdditionalPhone] = useState('')
+  const [hospitalCountryCode, setHospitalCountryCode] = useState('+251')
+  const [hospitalAdditionalPhone, setHospitalAdditionalPhone] =
+    useState('')
+  const [hospitalAdditionalCountryCode, setHospitalAdditionalCountryCode] =
+    useState('+251')
 
   const [hospitalPassword, setHospitalPassword] = useState('')
-  const [hospitalConfirmPassword, setHospitalConfirmPassword] = useState('')
-
-  /* INDIVIDUAL DONOR PASSWORD VALIDATION */
+  const [hospitalConfirmPassword, setHospitalConfirmPassword] =
+    useState('')
 
   const passwordIsStrong =
     password.length >= 8 &&
@@ -62,8 +116,6 @@ const [, setMedicalReport] = useState<File | null>(null)
     confirmPassword.length > 0 &&
     password === confirmPassword
 
-  /* HOSPITAL PASSWORD VALIDATION */
-
   const hospitalPasswordIsStrong =
     hospitalPassword.length >= 8 &&
     /[A-Z]/.test(hospitalPassword) &&
@@ -76,14 +128,84 @@ const [, setMedicalReport] = useState<File | null>(null)
     hospitalConfirmPassword.length > 0 &&
     hospitalPassword === hospitalConfirmPassword
 
-  /* DONOR SUBMIT */
+  const updateAvailability = <K extends keyof Availability>(
+    day: Weekday,
+    field: K,
+    value: Availability[K]
+  ) => {
+    setAvailability((previous) => ({
+      ...previous,
+      [day]: {
+        ...previous[day],
+        [field]: value,
+      },
+    }))
+  }
+
+  const selectedAvailability = Object.entries(availability)
+    .filter(([, value]) => value.enabled)
+    .map(([day, value]) => ({
+      day: day as Weekday,
+      time: value.time,
+    }))
+
+  const availabilityIsValid =
+    selectedAvailability.length > 0 &&
+    selectedAvailability.every((item) => item.time.trim().length > 0)
 
   const handleDonorSubmit = async (
     e: FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault()
-
     setError('')
+
+    if (!passwordIsStrong) {
+      setError('Please create a strong password.')
+      return
+    }
+
+    if (!passwordsMatch) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    if (!availabilityIsValid) {
+      setError(
+        'Please select at least one available day and choose a time for it.'
+      )
+      return
+    }
+
+    if (!currentAvailability) {
+      setError('Please select your current availability.')
+      return
+    }
+
+    if (!/^\d{16}$/.test(faydaId.trim())) {
+      setError('Fayda ID must be exactly 16 digits.')
+      return
+    }
+
+    if (!Number.isInteger(Number(age)) || Number(age) < 18) {
+      setError('You must be at least 18 years old to register as a donor.')
+      return
+    }
+
+    if (Number(weight) <= 0 || Number(height) <= 0) {
+      setError('Weight and height must be greater than zero.')
+      return
+    }
+
+    if (!reportType || !medicalReport) {
+      setError('Please select your medical report file.')
+      return
+    }
+
+    if (medicalReport.size > MAX_REPORT_SIZE) {
+      setError('Medical report must be 5 MB or smaller.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -92,6 +214,20 @@ const [, setMedicalReport] = useState<File | null>(null)
         password,
         name: fullName.trim(),
         accountType: 'INDIVIDUAL',
+        faydaId: faydaId.trim(),
+        phone: `${countryCode}${phone.trim()}`,
+        additionalPhone: additionalPhone.trim()
+          ? `${additionalCountryCode}${additionalPhone.trim()}`
+          : undefined,
+        address: address.trim(),
+        age: Number(age),
+        weight: Number(weight),
+        height: Number(height),
+        currentAvailability,
+        lastDonation: lastDonation || undefined,
+        availabilities: selectedAvailability,
+        reportType,
+        medicalReport,
       })
 
       navigate('/login')
@@ -99,21 +235,29 @@ const [, setMedicalReport] = useState<File | null>(null)
       setError(
         error instanceof Error
           ? error.message
-          : 'Registration failed'
+          : 'Registration failed.'
       )
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  /* HOSPITAL SUBMIT */
-
   const handleHospitalSubmit = async (
     e: FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault()
-
     setError('')
+
+    if (!hospitalPasswordIsStrong) {
+      setError('Please create a strong password.')
+      return
+    }
+
+    if (!hospitalPasswordsMatch) {
+      setError('Passwords do not match.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -122,6 +266,12 @@ const [, setMedicalReport] = useState<File | null>(null)
         password: hospitalPassword,
         name: hospitalName.trim(),
         accountType: 'HOSPITAL',
+        hospitalName: hospitalName.trim(),
+        address: hospitalAddress.trim(),
+        phone: `${hospitalCountryCode}${hospitalPhone.trim()}`,
+        additionalPhone: hospitalAdditionalPhone.trim()
+          ? `${hospitalAdditionalCountryCode}${hospitalAdditionalPhone.trim()}`
+          : undefined,
       })
 
       navigate('/login')
@@ -129,21 +279,17 @@ const [, setMedicalReport] = useState<File | null>(null)
       setError(
         error instanceof Error
           ? error.message
-          : 'Registration failed'
+          : 'Registration failed.'
       )
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  /* 1. CHOOSE REGISTRATION TYPE */
-
   if (!registrationType) {
     return (
       <main className="register-page">
-
         <div className="register-container">
-
           <h1>Register with MEKAKEL</h1>
 
           <p className="register-introduction">
@@ -151,11 +297,9 @@ const [, setMedicalReport] = useState<File | null>(null)
           </p>
 
           <section className="form-section">
-
             <h2>Register As</h2>
 
             <div className="registration-choice">
-
               <button
                 type="button"
                 className="register-button"
@@ -171,33 +315,21 @@ const [, setMedicalReport] = useState<File | null>(null)
               >
                 Hospital / Clinic
               </button>
-
             </div>
-
           </section>
 
           <p className="login-link">
-            Already have an account?{' '}
-
-            <Link to="/login">
-              Login
-            </Link>
+            Already have an account? <Link to="/login">Login</Link>
           </p>
-
         </div>
-
       </main>
     )
   }
 
-  /* 2. BEFORE YOU REGISTER - INDIVIDUAL DONOR */
-
   if (registrationType === 'donor' && !showRegistration) {
     return (
       <main className="before-register-page">
-
         <div className="before-register-container">
-
           <h1>Before You Register</h1>
 
           <p className="before-register-introduction">
@@ -206,13 +338,12 @@ const [, setMedicalReport] = useState<File | null>(null)
           </p>
 
           <section className="medical-warning">
-
             <h2>Important Medical Information</h2>
 
             <p>
-              Individuals should not register as blood donors if their
-              medical report shows a positive or affected result for
-              any of the following conditions:
+              Blood donation eligibility must be determined by qualified
+              medical personnel. The following conditions may affect
+              eligibility and should be discussed with a medical professional:
             </p>
 
             <ul>
@@ -220,66 +351,42 @@ const [, setMedicalReport] = useState<File | null>(null)
               <li>Hepatitis B</li>
               <li>Hepatitis C</li>
               <li>Syphilis</li>
-
-              <li>
-                Other transfusion-transmissible infections
-              </li>
-
-              <li>
-                Low hemoglobin or anemia
-              </li>
-
-              <li>Pregnancy</li>
-              <li>Recent childbirth</li>
+              <li>Other transfusion-transmissible infections</li>
+              <li>Low hemoglobin or anemia</li>
+              <li>Pregnancy or recent childbirth</li>
               <li>Current illness or infection</li>
               <li>Low body weight</li>
-
-              <li>
-                Unstable blood pressure or vital signs
-              </li>
-
+              <li>Unstable blood pressure or vital signs</li>
               <li>Recent blood donation</li>
-              <li>Certain medical conditions</li>
-              <li>Certain medications</li>
-
-              <li>
-                Recent surgery or medical procedures
-              </li>
+              <li>Certain medical conditions or medications</li>
+              <li>Recent surgery or medical procedures</li>
             </ul>
 
             <div className="do-not-register">
-
-              <h3>Do Not Proceed With Registration</h3>
-
+              <h3>Important</h3>
               <p>
-                If any of the conditions above apply to you or your
-                medical report shows a positive or affected result,
-                please do not proceed with donor registration.
+                Do not rely on this list to determine your eligibility.
+                An authorized medical professional must assess your suitability
+                to donate blood.
               </p>
-
             </div>
 
             <div className="medical-information-note">
-
-              <h3>Important</h3>
+              <h3>Medical Testing and Verification</h3>
 
               <p>
-                MEKAKEL does not perform laboratory testing.
-                Medical testing must be performed by an authorized
-                medical facility.
+                MEKAKEL does not perform laboratory testing. Medical testing
+                must be performed by an authorized medical facility.
               </p>
 
               <p>
                 Your medical report will be reviewed by an authorized
                 Doctor/Verifier during the donor verification process.
               </p>
-
             </div>
-
           </section>
 
           <section className="before-register-continue">
-
             <h2>Ready to Continue?</h2>
 
             <p>
@@ -288,20 +395,16 @@ const [, setMedicalReport] = useState<File | null>(null)
             </p>
 
             <label className="warning-checkbox">
-
               <input
                 type="checkbox"
                 checked={medicalWarning}
-                onChange={(e) =>
-                  setMedicalWarning(e.target.checked)
-                }
+                onChange={(e) => setMedicalWarning(e.target.checked)}
               />
 
               <span>
                 I have read and understood the donor registration
                 requirements.
               </span>
-
             </label>
 
             <button
@@ -323,23 +426,16 @@ const [, setMedicalReport] = useState<File | null>(null)
             >
               Back
             </button>
-
           </section>
-
         </div>
-
       </main>
     )
   }
 
-  /* 3. HOSPITAL / CLINIC REGISTRATION */
-
   if (registrationType === 'hospital') {
     return (
       <main className="register-page">
-
         <div className="register-container">
-
           <h1>Hospital / Clinic Registration</h1>
 
           <p className="register-introduction">
@@ -347,25 +443,13 @@ const [, setMedicalReport] = useState<File | null>(null)
             blood availability and requests with other healthcare facilities.
           </p>
 
-          <form
-            className="register-form"
-            onSubmit={handleHospitalSubmit}
-          >
-
-            {error && (
-              <div className="register-error">
-                {error}
-              </div>
-            )}
-
-            {/* HOSPITAL / CLINIC INFORMATION */}
+          <form className="register-form" onSubmit={handleHospitalSubmit}>
+            {error && <div className="register-error">{error}</div>}
 
             <section className="form-section">
-
               <h2>1. Hospital / Clinic Information</h2>
 
               <div className="form-group">
-
                 <label htmlFor="hospitalName">
                   Hospital / Clinic Name
                 </label>
@@ -375,17 +459,13 @@ const [, setMedicalReport] = useState<File | null>(null)
                   id="hospitalName"
                   name="hospitalName"
                   value={hospitalName}
-                  onChange={(e) =>
-                    setHospitalName(e.target.value)
-                  }
+                  onChange={(e) => setHospitalName(e.target.value)}
                   placeholder="Enter hospital or clinic name"
                   required
                 />
-
               </div>
 
               <div className="form-group">
-
                 <label htmlFor="institutionalEmail">
                   Institutional Email
                 </label>
@@ -395,9 +475,7 @@ const [, setMedicalReport] = useState<File | null>(null)
                   id="institutionalEmail"
                   name="institutionalEmail"
                   value={institutionalEmail}
-                  onChange={(e) =>
-                    setInstitutionalEmail(e.target.value)
-                  }
+                  onChange={(e) => setInstitutionalEmail(e.target.value)}
                   placeholder="Enter institutional email"
                   required
                 />
@@ -405,86 +483,38 @@ const [, setMedicalReport] = useState<File | null>(null)
                 <small>
                   Use the official email address of the hospital or clinic.
                 </small>
-
               </div>
 
               <div className="form-group">
-
-                <label htmlFor="hospitalAddress">
-                  Address
-                </label>
+                <label htmlFor="hospitalAddress">Address</label>
 
                 <input
                   type="text"
                   id="hospitalAddress"
                   name="hospitalAddress"
                   value={hospitalAddress}
-                  onChange={(e) =>
-                    setHospitalAddress(e.target.value)
-                  }
+                  onChange={(e) => setHospitalAddress(e.target.value)}
                   placeholder="Enter hospital or clinic address"
                   required
                 />
-
               </div>
 
               <div className="form-group">
-
-                <label htmlFor="hospitalPhone">
-                  Phone Number
-                </label>
+                <label htmlFor="hospitalPhone">Phone Number</label>
 
                 <div className="phone-input">
-
                   <select
                     id="hospitalCountryCode"
                     name="hospitalCountryCode"
+                    value={hospitalCountryCode}
+                    onChange={(e) => setHospitalCountryCode(e.target.value)}
                     required
                   >
-                    <option value="+251">
-                      Ethiopia (+251)
-                    </option>
-
-                    <option value="+254">
-                      Kenya (+254)
-                    </option>
-
-                    <option value="+255">
-                      Tanzania (+255)
-                    </option>
-
-                    <option value="+256">
-                      Uganda (+256)
-                    </option>
-
-                    <option value="+20">
-                      Egypt (+20)
-                    </option>
-
-                    <option value="+27">
-                      South Africa (+27)
-                    </option>
-
-                    <option value="+44">
-                      United Kingdom (+44)
-                    </option>
-
-                    <option value="+1">
-                      United States (+1)
-                    </option>
-
-                    <option value="+971">
-                      UAE (+971)
-                    </option>
-
-                    <option value="+966">
-                      Saudi Arabia (+966)
-                    </option>
-
-                    <option value="+91">
-                      India (+91)
-                    </option>
-
+                    {countryCodes.map((country) => (
+                      <option key={country.value} value={country.value}>
+                        {country.label}
+                      </option>
+                    ))}
                   </select>
 
                   <input
@@ -492,73 +522,32 @@ const [, setMedicalReport] = useState<File | null>(null)
                     id="hospitalPhone"
                     name="hospitalPhone"
                     value={hospitalPhone}
-                    onChange={(e) =>
-                      setHospitalPhone(e.target.value)
-                    }
+                    onChange={(e) => setHospitalPhone(e.target.value)}
                     placeholder="Enter phone number"
                     required
                   />
-
                 </div>
-
               </div>
 
               <div className="form-group">
-
                 <label htmlFor="hospitalAdditionalPhone">
                   Additional Phone Number
                 </label>
 
                 <div className="phone-input">
-
                   <select
                     id="hospitalAdditionalCountryCode"
                     name="hospitalAdditionalCountryCode"
+                    value={hospitalAdditionalCountryCode}
+                    onChange={(e) =>
+                      setHospitalAdditionalCountryCode(e.target.value)
+                    }
                   >
-                    <option value="+251">
-                      Ethiopia (+251)
-                    </option>
-
-                    <option value="+254">
-                      Kenya (+254)
-                    </option>
-
-                    <option value="+255">
-                      Tanzania (+255)
-                    </option>
-
-                    <option value="+256">
-                      Uganda (+256)
-                    </option>
-
-                    <option value="+20">
-                      Egypt (+20)
-                    </option>
-
-                    <option value="+27">
-                      South Africa (+27)
-                    </option>
-
-                    <option value="+44">
-                      United Kingdom (+44)
-                    </option>
-
-                    <option value="+1">
-                      United States (+1)
-                    </option>
-
-                    <option value="+971">
-                      UAE (+971)
-                    </option>
-
-                    <option value="+966">
-                      Saudi Arabia (+966)
-                    </option>
-
-                    <option value="+91">
-                      India (+91)
-                    </option>
-
+                    {countryCodes.map((country) => (
+                      <option key={country.value} value={country.value}>
+                        {country.label}
+                      </option>
+                    ))}
                   </select>
 
                   <input
@@ -571,33 +560,22 @@ const [, setMedicalReport] = useState<File | null>(null)
                     }
                     placeholder="Enter additional phone number"
                   />
-
                 </div>
-
               </div>
-
             </section>
 
-            {/* ACCOUNT INFORMATION */}
-
             <section className="form-section">
-
               <h2>2. Account Information</h2>
 
               <div className="form-group">
-
-                <label htmlFor="hospitalPassword">
-                  Password
-                </label>
+                <label htmlFor="hospitalPassword">Password</label>
 
                 <input
                   type="password"
                   id="hospitalPassword"
                   name="hospitalPassword"
                   value={hospitalPassword}
-                  onChange={(e) =>
-                    setHospitalPassword(e.target.value)
-                  }
+                  onChange={(e) => setHospitalPassword(e.target.value)}
                   placeholder="Create a strong password"
                   minLength={8}
                   required
@@ -608,16 +586,12 @@ const [, setMedicalReport] = useState<File | null>(null)
                   letters, numbers, and special characters.
                 </small>
 
-                <small>
-                  Example: Abcd@1234
-                </small>
-
                 {hospitalPassword.length > 0 &&
                   !hospitalPasswordIsStrong && (
                     <small className="password-warning">
-                      Your password is not strong enough.
-                      Add uppercase letters, lowercase letters,
-                      numbers, and a special character.
+                      Your password is not strong enough. Add uppercase
+                      letters, lowercase letters, numbers, and a special
+                      character.
                     </small>
                   )}
 
@@ -626,11 +600,9 @@ const [, setMedicalReport] = useState<File | null>(null)
                     Strong password.
                   </small>
                 )}
-
               </div>
 
               <div className="form-group">
-
                 <label htmlFor="hospitalConfirmPassword">
                   Confirm Password
                 </label>
@@ -659,27 +631,21 @@ const [, setMedicalReport] = useState<File | null>(null)
                     Passwords match.
                   </small>
                 )}
-
               </div>
-
             </section>
 
-            {/* VERIFICATION */}
-
             <section className="verification-notice">
-
               <h2>Hospital / Clinic Verification</h2>
 
               <p>
-                Submitting this form does not immediately activate
-                the hospital or clinic account.
+                Submitting this form does not immediately activate the
+                hospital or clinic account.
               </p>
 
               <p>
-                The institution must first be reviewed and verified
-                by an authorized MEKAKEL administrator.
+                The institution must first be reviewed and verified by an
+                authorized MEKAKEL administrator.
               </p>
-
             </section>
 
             <button
@@ -708,60 +674,33 @@ const [, setMedicalReport] = useState<File | null>(null)
             </button>
 
             <p className="login-link">
-
-              Already have an account?{' '}
-
-              <Link to="/login">
-                Login
-              </Link>
-
+              Already have an account? <Link to="/login">Login</Link>
             </p>
-
           </form>
-
         </div>
-
       </main>
     )
   }
 
-  /* 4. INDIVIDUAL DONOR REGISTRATION */
-
   return (
     <main className="register-page">
-
       <div className="register-container">
-
         <h1>Individual Donor Registration</h1>
 
         <p className="register-introduction">
-          Register with MEKAKEL as an individual volunteer donor.
-          Your information and medical report will be reviewed before
-          you become a Verified Active Donor.
+          Register with MEKAKEL as an individual volunteer donor. Your
+          information and medical report will be reviewed before you become
+          a Verified Active Donor.
         </p>
 
-        <form
-          className="register-form"
-          onSubmit={handleDonorSubmit}
-        >
-
-          {error && (
-            <div className="register-error">
-              {error}
-            </div>
-          )}
-
-          {/* 1. IDENTITY INFORMATION */}
+        <form className="register-form" onSubmit={handleDonorSubmit}>
+          {error && <div className="register-error">{error}</div>}
 
           <section className="form-section">
-
             <h2>1. Identity Information</h2>
 
             <div className="form-group">
-
-              <label htmlFor="faydaId">
-                Fayda ID
-              </label>
+              <label htmlFor="faydaId">Fayda ID</label>
 
               <input
                 type="text"
@@ -769,125 +708,76 @@ const [, setMedicalReport] = useState<File | null>(null)
                 name="faydaId"
                 value={faydaId}
                 onChange={(e) =>
-                  setFaydaId(e.target.value)
+                  setFaydaId(e.target.value.replace(/\D/g, '').slice(0, 16))
                 }
-                placeholder="Enter your Fayda ID"
+                inputMode="numeric"
+                minLength={16}
+                maxLength={16}
+                pattern="\d{16}"
+                title="Fayda ID must be exactly 16 digits"
+                placeholder="Enter your 16-digit Fayda ID"
                 required
               />
+
+              <small>Your Fayda ID must be exactly 16 digits.</small>
 
               <small>
                 Fayda verification is currently simulated for this MVP.
                 Actual Fayda integration will be added in a future version.
               </small>
-
             </div>
 
             <div className="fayda-notice">
-
               <p>
-                Your identity will be checked through the MEKAKEL
-                mock Fayda verification process.
+                Your identity will be checked through the MEKAKEL mock
+                Fayda verification process.
               </p>
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="fullName">
-                Full Name
-              </label>
+              <label htmlFor="fullName">Full Name</label>
 
               <input
                 type="text"
                 id="fullName"
                 name="fullName"
                 value={fullName}
-                onChange={(e) =>
-                  setFullName(e.target.value.toUpperCase())
-                }
+                onChange={(e) => setFullName(e.target.value.toUpperCase())}
                 placeholder="Enter your full name"
                 required
               />
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="email">
-                Email
-              </label>
+              <label htmlFor="email">Email</label>
 
               <input
                 type="email"
                 id="email"
                 name="email"
                 value={email}
-                onChange={(e) =>
-                  setEmail(e.target.value)
-                }
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Enter your email"
                 required
               />
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="phone">
-                Primary Phone Number
-              </label>
+              <label htmlFor="phone">Primary Phone Number</label>
 
               <div className="phone-input">
-
                 <select
                   id="countryCode"
                   name="countryCode"
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
                   required
                 >
-                  <option value="+251">
-                    Ethiopia (+251)
-                  </option>
-
-                  <option value="+254">
-                    Kenya (+254)
-                  </option>
-
-                  <option value="+255">
-                    Tanzania (+255)
-                  </option>
-
-                  <option value="+256">
-                    Uganda (+256)
-                  </option>
-
-                  <option value="+20">
-                    Egypt (+20)
-                  </option>
-
-                  <option value="+27">
-                    South Africa (+27)
-                  </option>
-
-                  <option value="+44">
-                    United Kingdom (+44)
-                  </option>
-
-                  <option value="+1">
-                    United States (+1)
-                  </option>
-
-                  <option value="+971">
-                    UAE (+971)
-                  </option>
-
-                  <option value="+966">
-                    Saudi Arabia (+966)
-                  </option>
-
-                  <option value="+91">
-                    India (+91)
-                  </option>
-
+                  {countryCodes.map((country) => (
+                    <option key={country.value} value={country.value}>
+                      {country.label}
+                    </option>
+                  ))}
                 </select>
 
                 <input
@@ -895,73 +785,32 @@ const [, setMedicalReport] = useState<File | null>(null)
                   id="phone"
                   name="phone"
                   value={phone}
-                  onChange={(e) =>
-                    setPhone(e.target.value)
-                  }
+                  onChange={(e) => setPhone(e.target.value)}
                   placeholder="Enter phone number"
                   required
                 />
-
               </div>
-
             </div>
 
             <div className="form-group">
-
               <label htmlFor="additionalPhone">
                 Additional Phone Number
               </label>
 
               <div className="phone-input">
-
                 <select
                   id="additionalCountryCode"
                   name="additionalCountryCode"
+                  value={additionalCountryCode}
+                  onChange={(e) =>
+                    setAdditionalCountryCode(e.target.value)
+                  }
                 >
-                  <option value="+251">
-                    Ethiopia (+251)
-                  </option>
-
-                  <option value="+254">
-                    Kenya (+254)
-                  </option>
-
-                  <option value="+255">
-                    Tanzania (+255)
-                  </option>
-
-                  <option value="+256">
-                    Uganda (+256)
-                  </option>
-
-                  <option value="+20">
-                    Egypt (+20)
-                  </option>
-
-                  <option value="+27">
-                    South Africa (+27)
-                  </option>
-
-                  <option value="+44">
-                    United Kingdom (+44)
-                  </option>
-
-                  <option value="+1">
-                    United States (+1)
-                  </option>
-
-                  <option value="+971">
-                    UAE (+971)
-                  </option>
-
-                  <option value="+966">
-                    Saudi Arabia (+966)
-                  </option>
-
-                  <option value="+91">
-                    India (+91)
-                  </option>
-
+                  {countryCodes.map((country) => (
+                    <option key={country.value} value={country.value}>
+                      {country.label}
+                    </option>
+                  ))}
                 </select>
 
                 <input
@@ -969,58 +818,39 @@ const [, setMedicalReport] = useState<File | null>(null)
                   id="additionalPhone"
                   name="additionalPhone"
                   value={additionalPhone}
-                  onChange={(e) =>
-                    setAdditionalPhone(e.target.value)
-                  }
+                  onChange={(e) => setAdditionalPhone(e.target.value)}
                   placeholder="Enter additional phone number"
                 />
-
               </div>
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="address">
-                Address
-              </label>
+              <label htmlFor="address">Address</label>
 
               <input
                 type="text"
                 id="address"
                 name="address"
                 value={address}
-                onChange={(e) =>
-                  setAddress(e.target.value)
-                }
+                onChange={(e) => setAddress(e.target.value)}
                 placeholder="Enter your address"
                 required
               />
-
             </div>
-
           </section>
 
-          {/* 2. ACCOUNT INFORMATION */}
-
           <section className="form-section">
-
             <h2>2. Account Information</h2>
 
             <div className="form-group">
-
-              <label htmlFor="password">
-                Password
-              </label>
+              <label htmlFor="password">Password</label>
 
               <input
                 type="password"
                 id="password"
                 name="password"
                 value={password}
-                onChange={(e) =>
-                  setPassword(e.target.value)
-                }
+                onChange={(e) => setPassword(e.target.value)}
                 placeholder="Create a strong password"
                 minLength={8}
                 required
@@ -1031,220 +861,139 @@ const [, setMedicalReport] = useState<File | null>(null)
                 letters, numbers, and special characters.
               </small>
 
-              <small>
-                Example: Abcd@1234
-              </small>
-
-              {password.length > 0 &&
-                !passwordIsStrong && (
-                  <small className="password-warning">
-                    Your password is not strong enough.
-                    Add uppercase letters, lowercase letters,
-                    numbers, and a special character.
-                  </small>
-                )}
+              {password.length > 0 && !passwordIsStrong && (
+                <small className="password-warning">
+                  Your password is not strong enough. Add uppercase letters,
+                  lowercase letters, numbers, and a special character.
+                </small>
+              )}
 
               {passwordIsStrong && (
                 <small className="password-success">
                   Strong password.
                 </small>
               )}
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="confirmPassword">
-                Confirm Password
-              </label>
+              <label htmlFor="confirmPassword">Confirm Password</label>
 
               <input
                 type="password"
                 id="confirmPassword"
                 name="confirmPassword"
                 value={confirmPassword}
-                onChange={(e) =>
-                  setConfirmPassword(e.target.value)
-                }
+                onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm your password"
                 required
               />
 
-              {confirmPassword.length > 0 &&
-                !passwordsMatch && (
-                  <small className="password-warning">
-                    Passwords do not match.
-                  </small>
-                )}
+              {confirmPassword.length > 0 && !passwordsMatch && (
+                <small className="password-warning">
+                  Passwords do not match.
+                </small>
+              )}
 
               {passwordsMatch && (
                 <small className="password-success">
                   Passwords match.
                 </small>
               )}
-
             </div>
-
           </section>
 
-          {/* 3. PHYSICAL INFORMATION */}
-
           <section className="form-section">
-
             <h2>3. Physical Information</h2>
 
             <div className="form-group">
-
-              <label htmlFor="age">
-                Age
-              </label>
+              <label htmlFor="age">Age</label>
 
               <input
                 type="number"
                 id="age"
                 name="age"
                 value={age}
-                onChange={(e) =>
-                  setAge(e.target.value)
-                }
-                min="1"
-                placeholder="Enter your age"
+                onChange={(e) => setAge(e.target.value)}
+                min="18"
+                placeholder="Enter your age (18 or older)"
                 required
               />
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="weight">
-                Weight (kg)
-              </label>
+              <label htmlFor="weight">Weight (kg)</label>
 
               <input
                 type="number"
                 id="weight"
                 name="weight"
                 value={weight}
-                onChange={(e) =>
-                  setWeight(e.target.value)
-                }
+                onChange={(e) => setWeight(e.target.value)}
                 min="1"
                 step="0.1"
                 placeholder="Enter your weight"
                 required
               />
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="height">
-                Height (cm)
-              </label>
+              <label htmlFor="height">Height (cm)</label>
 
               <input
                 type="number"
                 id="height"
                 name="height"
                 value={height}
-                onChange={(e) =>
-                  setHeight(e.target.value)
-                }
+                onChange={(e) => setHeight(e.target.value)}
                 min="1"
                 step="0.1"
                 placeholder="Enter your height"
                 required
               />
-
             </div>
-
           </section>
 
-          {/* 4. DONATION AVAILABILITY */}
-
           <section className="form-section">
-
             <h2>4. Donation Availability</h2>
 
-            <div className="form-group">
+            <p className="section-description">
+              Select the days and times when you are normally available
+              to donate blood.
+            </p>
 
-              <label htmlFor="availabilityDate">
-                Available Date
-              </label>
+            <div className="availability-list">
+              {weekdays.map(([day, label]) => (
+                <div className="availability-row" key={day}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={availability[day].enabled}
+                      onChange={(e) =>
+                        updateAvailability(
+                          day,
+                          'enabled',
+                          e.target.checked
+                        )
+                      }
+                    />
 
-              <input
-                type="date"
-                id="availabilityDate"
-                name="availabilityDate"
-                value={availabilityDate}
-                onChange={(e) =>
-                  setAvailabilityDate(e.target.value)
-                }
-                required
-              />
+                    <span>{label}</span>
+                  </label>
 
-              <small>
-                Select the year, month, and day you are available.
-              </small>
-
+                  <input
+                    type="time"
+                    value={availability[day].time}
+                    disabled={!availability[day].enabled}
+                    required={availability[day].enabled}
+                    onChange={(e) =>
+                      updateAvailability(day, 'time', e.target.value)
+                    }
+                  />
+                </div>
+              ))}
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="availabilityPeriod">
-                Available Period
-              </label>
-
-              <select
-                id="availabilityPeriod"
-                name="availabilityPeriod"
-                value={availabilityPeriod}
-                onChange={(e) =>
-                  setAvailabilityPeriod(e.target.value)
-                }
-                required
-              >
-                <option value="">
-                  Select period
-                </option>
-
-                <option value="morning">
-                  Morning
-                </option>
-
-                <option value="afternoon">
-                  Afternoon
-                </option>
-
-                <option value="evening">
-                  Evening
-                </option>
-
-              </select>
-
-            </div>
-
-            <div className="form-group">
-
-              <label htmlFor="availabilityHour">
-                Available Hour
-              </label>
-
-              <input
-                type="time"
-                id="availabilityHour"
-                name="availabilityHour"
-                value={availabilityHour}
-                onChange={(e) =>
-                  setAvailabilityHour(e.target.value)
-                }
-                required
-              />
-
-            </div>
-
-            <div className="form-group">
-
               <label htmlFor="currentAvailability">
                 Current Availability
               </label>
@@ -1254,90 +1003,68 @@ const [, setMedicalReport] = useState<File | null>(null)
                 name="currentAvailability"
                 value={currentAvailability}
                 onChange={(e) =>
-                  setCurrentAvailability(e.target.value)
+                  setCurrentAvailability(
+                    e.target.value as AvailabilityStatus | ''
+                  )
                 }
                 required
               >
-                <option value="">
-                  Select availability
-                </option>
-
-                <option value="available">
-                  Available to Donate
-                </option>
-
-                <option value="unavailable">
-                  Currently Unavailable
-                </option>
-
+                <option value="">Select availability</option>
+                <option value="AVAILABLE">Available to Donate</option>
+                <option value="UNAVAILABLE">Currently Unavailable</option>
               </select>
-
             </div>
 
+            <small>
+              Your weekly availability is separate from your current
+              availability status. You can be normally available on
+              certain days but temporarily unavailable.
+            </small>
           </section>
 
-          {/* 5. MEDICAL REPORT */}
-
           <section className="form-section">
-
             <h2>5. Medical Report</h2>
 
             <p className="section-description">
-              Upload a valid medical screening report issued by
-              an authorized medical facility.
+              Upload a valid medical screening report issued by an
+              authorized medical facility.
             </p>
 
             <div className="medical-requirements">
-
               <h3>The report must show:</h3>
 
               <ul>
-                <li>Negative HIV result</li>
-                <li>Negative Hepatitis B result</li>
-                <li>Negative Hepatitis C result</li>
-                <li>Negative Syphilis result</li>
+                <li>HIV screening result</li>
+                <li>Hepatitis B screening result</li>
+                <li>Hepatitis C screening result</li>
+                <li>Syphilis screening result</li>
                 <li>Confirmed ABO and Rh blood type</li>
                 <li>Testing facility name</li>
                 <li>Test date</li>
               </ul>
-
             </div>
 
             <div className="form-group">
-
-              <label htmlFor="reportType">
-                Choose Report File Type
-              </label>
+              <label htmlFor="reportType">Choose Report File Type</label>
 
               <select
                 id="reportType"
                 name="reportType"
                 value={reportType}
-                onChange={(e) =>
-                  setReportType(e.target.value)
-                }
+                onChange={(e) => {
+                  setReportType(e.target.value as ReportType | '')
+                  setMedicalReport(null)
+                }}
                 required
               >
-                <option value="">
-                  Select file type
-                </option>
-
-                <option value="image">
-                  Image
-                </option>
-
-                <option value="pdf">
-                  PDF
-                </option>
-
+                <option value="">Select file type</option>
+                <option value="IMAGE">Image</option>
+                <option value="PDF">PDF</option>
               </select>
-
             </div>
 
             {reportType && (
-
               <div className="form-group">
-
                 <label htmlFor="medicalReport">
                   Upload Medical Report
                 </label>
@@ -1347,85 +1074,67 @@ const [, setMedicalReport] = useState<File | null>(null)
                   id="medicalReport"
                   name="medicalReport"
                   accept={
-                    reportType === 'image'
+                    reportType === 'IMAGE'
                       ? 'image/*'
                       : '.pdf,application/pdf'
                   }
                   onChange={(e) =>
-                    setMedicalReport(
-                      e.target.files?.[0] || null
-                    )
+                    setMedicalReport(e.target.files?.[0] || null)
                   }
                   required
                 />
 
                 <small>
-                  {reportType === 'image'
+                  {reportType === 'IMAGE'
                     ? 'Only image files are accepted.'
-                    : 'Only PDF files are accepted.'
-                  }
+                    : 'Only PDF files are accepted.'}
                 </small>
 
+                {medicalReport && (
+                  <small>{medicalReport.name}</small>
+                )}
               </div>
-
             )}
 
             <div className="medical-note">
-
               <p>
-                MEKAKEL does not perform laboratory testing.
-                Your medical report will be reviewed by an authorized
-                Doctor/Verifier.
+                MEKAKEL does not perform laboratory testing. Your medical
+                report must be reviewed by an authorized Doctor/Verifier.
               </p>
-
             </div>
-
           </section>
 
-          {/* 6. DONATION HISTORY */}
-
           <section className="form-section">
-
             <h2>6. Donation History</h2>
 
             <div className="form-group">
-
-              <label htmlFor="lastDonation">
-                Last Donation Date
-              </label>
+              <label htmlFor="lastDonation">Last Donation Date</label>
 
               <input
                 type="date"
                 id="lastDonation"
                 name="lastDonation"
                 value={lastDonation}
-                onChange={(e) =>
-                  setLastDonation(e.target.value)
-                }
+                onChange={(e) => setLastDonation(e.target.value)}
               />
 
               <small>
                 Leave this empty if you have never donated blood.
               </small>
-
             </div>
-
           </section>
 
-          {/* 7. VERIFICATION PROCESS */}
-
           <section className="verification-notice">
-
             <h2>7. Verification Process</h2>
 
             <p>
-              Submitting this form does not immediately make you
-              a Verified Active Donor.
+              Submitting this form does not immediately make you a
+              Verified Active Donor.
             </p>
 
             <p>
-              Your identity, information, and medical report must
-              first be reviewed by an authorized Doctor/Verifier.
+              Your identity, information, and medical report must first
+              be reviewed by an authorized Doctor/Verifier.
             </p>
 
             <p>
@@ -1438,10 +1147,7 @@ const [, setMedicalReport] = useState<File | null>(null)
               Your medical information will only be accessible to
               authorized personnel according to their role and permissions.
             </p>
-
           </section>
-
-          {/* SUBMIT */}
 
           <button
             type="submit"
@@ -1449,7 +1155,8 @@ const [, setMedicalReport] = useState<File | null>(null)
             disabled={
               isSubmitting ||
               !passwordIsStrong ||
-              !passwordsMatch
+              !passwordsMatch ||
+              !availabilityIsValid
             }
           >
             {isSubmitting
@@ -1470,19 +1177,10 @@ const [, setMedicalReport] = useState<File | null>(null)
           </button>
 
           <p className="login-link">
-
-            Already have an account?{' '}
-
-            <Link to="/login">
-              Login
-            </Link>
-
+            Already have an account? <Link to="/login">Login</Link>
           </p>
-
         </form>
-
       </div>
-
     </main>
   )
 }

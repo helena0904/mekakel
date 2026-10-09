@@ -67,6 +67,7 @@ body {
     color: #0056b3;
 }
 
+
 /* HERO */
 
 .hero {
@@ -289,18 +290,7 @@ body {
 }
 
 
-
-
-
-
-
-                                               
-
 /* REGISTER PAGE */
-
-* {
-    box-sizing: border-box;
-}
 
 .register-page {
     padding: 4rem 2rem;
@@ -594,6 +584,60 @@ body {
 }
 
 
+/* DONATION AVAILABILITY */
+
+.availability-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.availability-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+}
+
+.availability-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.availability-row label {
+    flex: 1;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.availability-row input[type="time"] {
+    width: 180px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+    cursor: pointer;
+}
+
+.availability-row input[type="time"]:focus {
+    outline: none;
+    border-color: #0056b3;
+}
+
+.availability-row input[type="time"]:disabled {
+    background-color: #e9ecef;
+    color: #777;
+    cursor: not-allowed;
+}
+
+
 /* MEDICAL REQUIREMENTS */
 
 .medical-requirements {
@@ -682,7 +726,8 @@ body {
     cursor: not-allowed;
 }
 
-/*registration error*/
+
+/* REGISTRATION ERROR */
 
 .register-error {
     color: #d32f2f;
@@ -692,6 +737,7 @@ body {
     border-radius: 6px;
     margin-bottom: 20px;
 }
+
 
 /* BACK BUTTON */
 
@@ -728,8 +774,6 @@ body {
 .login-link a:hover {
     text-decoration: underline;
 }
-
-
 
 
 /* LOGIN PAGE */
@@ -794,25 +838,6 @@ body {
 .login-container h2 {
     text-align: center;
     margin-bottom: 25px;
-}
-
-
-/* BACK BUTTON */
-
-.back-button {
-    width: 100%;
-    padding: 13px 24px;
-    border: 1px solid #0056b3;
-    border-radius: 6px;
-    background-color: white;
-    color: #0056b3;
-    font-size: 16px;
-    cursor: pointer;
-}
-
-.back-button:hover {
-    background-color: #0056b3;
-    color: white;
 }
 
 

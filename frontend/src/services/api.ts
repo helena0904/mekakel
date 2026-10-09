@@ -4,15 +4,17 @@ async function apiRequest(
   endpoint: string,
   options: RequestInit = {}
 ) {
+  const isFormData = options.body instanceof FormData
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...options.headers,
     },
   })
 
-  const data = await response.json()
+  const data = await response.json().catch(() => ({}))
 
   if (!response.ok) {
     throw new Error(data.message || 'Something went wrong')
