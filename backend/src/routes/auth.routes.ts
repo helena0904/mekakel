@@ -5,6 +5,7 @@ import fs from 'fs'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
 import prisma from '../lib/prisma'
+import { verifyMockFayda } from '../services/fayda.service'
 import { handleMedicalReportUpload } from '../middleware/upload.middleware'
 
 const router = Router()
@@ -78,6 +79,13 @@ const registerSchema = z.object({
     .trim()
     .regex(/^\d{16}$/, 'Fayda ID must be exactly 16 digits')
     .optional(),
+  dateOfBirth: z
+    .string()
+    .refine(
+      (value) => !Number.isNaN(Date.parse(value)),
+      'Invalid date of birth'
+    )
+    .optional(),
   phone: z.string().optional(),
   additionalPhone: z.string().optional(),
   address: z.string().optional(),
@@ -136,6 +144,7 @@ router.post(
       if (data.accountType === 'INDIVIDUAL') {
         if (
           !data.faydaId ||
+          !data.dateOfBirth ||
           !data.phone ||
           !data.address ||
           data.age === undefined ||
@@ -144,6 +153,20 @@ router.post(
         ) {
           return res.status(400).json({
             message: 'Missing required donor information',
+          })
+        }
+
+        const faydaResult = verifyMockFayda(
+          data.faydaId,
+          data.name,
+          data.dateOfBirth
+        )
+
+        if (!faydaResult.verified) {
+          return res.status(400).json({
+            message:
+              faydaResult.message ||
+              'Fayda identity verification failed.',
           })
         }
 
@@ -212,12 +235,16 @@ router.post(
             name: data.name,
             accountType: data.accountType,
             role,
+            isActive: data.accountType !== 'HOSPITAL',
 
             ...(data.accountType === 'INDIVIDUAL'
               ? {
                   donorProfile: {
                     create: {
                       faydaId: data.faydaId || null,
+                      dateOfBirth: data.dateOfBirth
+                        ? new Date(data.dateOfBirth)
+                        : null,
                       phone: data.phone!,
                       additionalPhone:
                         data.additionalPhone || null,
@@ -289,18 +316,15 @@ router.post(
         error.code === 'P2002'
       ) {
         return res.status(409).json({
-          message: 'Email or Fayda ID is already registered',
+          message: 'Email is already registered',
         })
       }
 
       console.error('Registration error:', error)
 
-return res.status(500).json({
-  message:
-    error instanceof Error
-      ? error.message
-      : 'Unknown registration error',
-})
+      return res.status(500).json({
+        message: 'Something went wrong. Please try again.',
+      })
     }
   }
 )
@@ -326,11 +350,22 @@ router.post('/login', async (req, res) => {
 
     const user = await prisma.user.findUnique({
       where: { email },
+      include: { hospitalProfile: true },
     })
 
     if (!user || user.accountType !== accountType) {
       return res.status(401).json({
         message: 'Invalid email or password',
+      })
+    }
+
+    if (
+      user.accountType === 'HOSPITAL' &&
+      (!user.hospitalProfile || !user.hospitalProfile.isVerified)
+    ) {
+      return res.status(403).json({
+        message:
+          'Your hospital account is pending administrator verification.',
       })
     }
 

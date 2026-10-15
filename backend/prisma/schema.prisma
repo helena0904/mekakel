@@ -74,7 +74,8 @@ medicalReports  MedicalReport[]
 model DonorProfile {
 id                  Int                         @id @default(autoincrement())
 userId              Int                         @unique
-faydaId             String?                     @unique
+faydaId             String?
+dateOfBirth         DateTime?
 phone               String
 additionalPhone     String?
 address             String

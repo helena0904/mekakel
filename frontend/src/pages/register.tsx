@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { login, register } from '../services/auth.service'
+import { verifyFayda } from '../services/fayda.service'
 import { useAuth } from '../hooks/useAuth'
 
 type Weekday =
@@ -65,9 +66,20 @@ function Register() {
   const [medicalWarning, setMedicalWarning] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
 
   const [faydaId, setFaydaId] = useState('')
   const [fullName, setFullName] = useState('')
+  const [dobDay, setDobDay] = useState('')
+  const [dobMonth, setDobMonth] = useState('')
+  const [dobYear, setDobYear] = useState('')
+  const [faydaVerified, setFaydaVerified] = useState(false)
+  const [isVerifyingFayda, setIsVerifyingFayda] = useState(false)
+  const [faydaMessage, setFaydaMessage] = useState('')
+  const [faydaMessageType, setFaydaMessageType] = useState<
+    'success' | 'error' | ''
+  >('')
+
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [countryCode, setCountryCode] = useState('+251')
@@ -107,6 +119,56 @@ function Register() {
   const [hospitalConfirmPassword, setHospitalConfirmPassword] =
     useState('')
 
+  const today = new Date().toISOString().split('T')[0]
+  const currentYear = new Date().getFullYear()
+
+  const dateOfBirth = useMemo(() => {
+    if (!/^\d{4}$/.test(dobYear)) return ''
+    if (!/^\d{1,2}$/.test(dobMonth) || !/^\d{1,2}$/.test(dobDay)) return ''
+
+    const year = Number(dobYear)
+    const month = Number(dobMonth)
+    const day = Number(dobDay)
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) return ''
+
+    const date = new Date(Date.UTC(year, month - 1, day))
+
+    if (
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day
+    ) {
+      return ''
+    }
+
+    const paddedMonth = String(month).padStart(2, '0')
+    const paddedDay = String(day).padStart(2, '0')
+
+    return `${dobYear}-${paddedMonth}-${paddedDay}`
+  }, [dobDay, dobMonth, dobYear])
+
+  const resetFaydaVerification = () => {
+    setFaydaVerified(false)
+    setFaydaMessage('')
+    setFaydaMessageType('')
+  }
+
+  const updateDateOfBirth = (
+    field: 'day' | 'month' | 'year',
+    value: string,
+  ) => {
+    const digits = value.replace(/\D/g, '')
+    const limited =
+      field === 'year' ? digits.slice(0, 4) : digits.slice(0, 2)
+
+    if (field === 'day') setDobDay(limited)
+    else if (field === 'month') setDobMonth(limited)
+    else setDobYear(limited)
+
+    resetFaydaVerification()
+  }
+
   const passwordIsStrong =
     password.length >= 8 &&
     /[A-Z]/.test(password) &&
@@ -134,7 +196,7 @@ function Register() {
   const updateAvailability = <K extends keyof Availability>(
     day: Weekday,
     field: K,
-    value: Availability[K]
+    value: Availability[K],
   ) => {
     setAvailability((previous) => ({
       ...previous,
@@ -156,8 +218,74 @@ function Register() {
     selectedAvailability.length > 0 &&
     selectedAvailability.every((item) => item.time.trim().length > 0)
 
+  const handleFaydaVerification = async () => {
+    setFaydaMessage('')
+    setFaydaMessageType('')
+    setFaydaVerified(false)
+
+    if (!/^\d{16}$/.test(faydaId.trim())) {
+      setFaydaMessage('Fayda ID must contain exactly 16 digits.')
+      setFaydaMessageType('error')
+      return
+    }
+
+    if (!fullName.trim()) {
+      setFaydaMessage('Please enter your full name.')
+      setFaydaMessageType('error')
+      return
+    }
+
+    if (!dobYear && !dobMonth && !dobDay) {
+      setFaydaMessage('Please enter your date of birth.')
+      setFaydaMessageType('error')
+      return
+    }
+
+    if (!dateOfBirth) {
+      setFaydaMessage('Please enter a valid date of birth.')
+      setFaydaMessageType('error')
+      return
+    }
+
+    if (dateOfBirth > today) {
+      setFaydaMessage('Date of birth cannot be in the future.')
+      setFaydaMessageType('error')
+      return
+    }
+
+    setIsVerifyingFayda(true)
+
+    try {
+      const result = await verifyFayda({
+        faydaId: faydaId.trim(),
+        fullName: fullName.trim(),
+        dateOfBirth,
+      })
+
+      if (result.success) {
+        setFaydaVerified(true)
+        setFaydaMessage(
+          'Mock identity verification successful. You can continue registration.',
+        )
+        setFaydaMessageType('success')
+      } else {
+        setFaydaMessage(result.message)
+        setFaydaMessageType('error')
+      }
+    } catch (error) {
+      setFaydaMessage(
+        error instanceof Error
+          ? error.message
+          : 'Verification failed. Please try again.',
+      )
+      setFaydaMessageType('error')
+    } finally {
+      setIsVerifyingFayda(false)
+    }
+  }
+
   const handleDonorSubmit = async (
-    e: FormEvent<HTMLFormElement>
+    e: FormEvent<HTMLFormElement>,
   ) => {
     e.preventDefault()
     setError('')
@@ -174,7 +302,7 @@ function Register() {
 
     if (!availabilityIsValid) {
       setError(
-        'Please select at least one available day and choose a time for it.'
+        'Please select at least one available day and choose a time for it.',
       )
       return
     }
@@ -186,6 +314,16 @@ function Register() {
 
     if (!/^\d{16}$/.test(faydaId.trim())) {
       setError('Fayda ID must be exactly 16 digits.')
+      return
+    }
+
+    if (!dateOfBirth) {
+      setError('Please enter a valid date of birth.')
+      return
+    }
+
+    if (!faydaVerified) {
+      setError('Please verify your identity before registering.')
       return
     }
 
@@ -241,6 +379,7 @@ function Register() {
         name: fullName.trim(),
         accountType: 'INDIVIDUAL',
         faydaId: faydaId.trim(),
+        dateOfBirth,
         phone: `${countryCode}${phone.trim()}`,
         additionalPhone: additionalPhone.trim()
           ? `${additionalCountryCode}${additionalPhone.trim()}`
@@ -269,7 +408,7 @@ function Register() {
       setError(
         error instanceof Error
           ? error.message
-          : 'Registration failed. Please try again.'
+          : 'Registration failed. Please try again.',
       )
     } finally {
       setIsSubmitting(false)
@@ -277,10 +416,11 @@ function Register() {
   }
 
   const handleHospitalSubmit = async (
-    e: FormEvent<HTMLFormElement>
+    e: FormEvent<HTMLFormElement>,
   ) => {
     e.preventDefault()
     setError('')
+    setSuccessMessage('')
 
     if (!hospitalPasswordIsStrong) {
       setError('Please create a strong password.')
@@ -310,20 +450,14 @@ function Register() {
           : undefined,
       })
 
-      const response = await login({
-        email: hospitalEmail,
-        password: hospitalPassword,
-        accountType: 'HOSPITAL',
-      })
-
-      loginUser(response.token, response.user)
-
-      navigate('/hospital-dashboard', { replace: true })
+      setSuccessMessage(
+        'Registration submitted. Your hospital or clinic account is pending administrator verification and cannot log in yet.',
+      )
     } catch (error) {
       setError(
         error instanceof Error
           ? error.message
-          : 'Registration failed. Please try again.'
+          : 'Registration failed. Please try again.',
       )
     } finally {
       setIsSubmitting(false)
@@ -490,6 +624,10 @@ function Register() {
 
           <form className="register-form" onSubmit={handleHospitalSubmit}>
             {error && <div className="register-error">{error}</div>}
+
+            {successMessage && (
+              <div className="register-success">{successMessage}</div>
+            )}
 
             <section className="form-section">
               <h2>1. Hospital / Clinic Information</h2>
@@ -752,9 +890,14 @@ function Register() {
                 id="faydaId"
                 name="faydaId"
                 value={faydaId}
-                onChange={(e) =>
-                  setFaydaId(e.target.value.replace(/\D/g, '').slice(0, 16))
-                }
+                onChange={(e) => {
+                  setFaydaId(
+                    e.target.value.replace(/\D/g, '').slice(0, 16),
+                  )
+                  setFaydaVerified(false)
+                  setFaydaMessage('')
+                  setFaydaMessageType('')
+                }}
                 inputMode="numeric"
                 minLength={16}
                 maxLength={16}
@@ -767,15 +910,15 @@ function Register() {
               <small>Your Fayda ID must be exactly 16 digits.</small>
 
               <small>
-                Fayda verification is currently simulated for this MVP.
-                Actual Fayda integration will be added in a future version.
+                Fayda verification is simulated for this MVP. This is not
+                a connection to the official Fayda system.
               </small>
             </div>
 
             <div className="fayda-notice">
               <p>
-                Your identity will be checked through the MEKAKEL mock
-                Fayda verification process.
+                Enter your details and select Verify Identity before
+                submitting your donor registration.
               </p>
             </div>
 
@@ -787,10 +930,106 @@ function Register() {
                 id="fullName"
                 name="fullName"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  setFullName(e.target.value)
+                  setFaydaVerified(false)
+                  setFaydaMessage('')
+                  setFaydaMessageType('')
+                }}
                 placeholder="Enter your full name"
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="dobDay">Date of Birth</label>
+
+              <div className="dob-input">
+                <input
+                  type="number"
+                  id="dobDay"
+                  name="dobDay"
+                  value={dobDay}
+                  onChange={(e) =>
+                    updateDateOfBirth('day', e.target.value)
+                  }
+                  min="1"
+                  max="31"
+                  inputMode="numeric"
+                  placeholder="DD"
+                  required
+                />
+
+                <input
+                  type="number"
+                  id="dobMonth"
+                  name="dobMonth"
+                  value={dobMonth}
+                  onChange={(e) =>
+                    updateDateOfBirth('month', e.target.value)
+                  }
+                  min="1"
+                  max="12"
+                  inputMode="numeric"
+                  placeholder="MM"
+                  required
+                />
+
+                <input
+                  type="number"
+                  id="dobYear"
+                  name="dobYear"
+                  value={dobYear}
+                  onChange={(e) =>
+                    updateDateOfBirth('year', e.target.value)
+                  }
+                  min="1900"
+                  max={currentYear}
+                  inputMode="numeric"
+                  placeholder="YYYY"
+                  required
+                />
+              </div>
+
+              <small>
+                Enter the day, month, and year as numbers, for example
+                15 / 05 / 2000.
+              </small>
+            </div>
+
+            <div className="fayda-verification">
+              <button
+                type="button"
+                className="register-button"
+                onClick={handleFaydaVerification}
+                disabled={isVerifyingFayda || faydaVerified}
+              >
+                {isVerifyingFayda
+                  ? 'Verifying...'
+                  : faydaVerified
+                    ? 'Identity Verified'
+                    : 'Verify Identity'}
+              </button>
+
+              {faydaMessage && (
+                <p
+                  role="status"
+                  className={
+                    faydaMessageType === 'success'
+                      ? 'password-success'
+                      : 'password-warning'
+                  }
+                >
+                  {faydaMessage}
+                </p>
+              )}
+
+              {faydaVerified && (
+                <small>
+                  This result comes from fictional mock data and does not
+                  represent official identity verification.
+                </small>
+              )}
             </div>
 
             <div className="form-group">
@@ -1017,7 +1256,7 @@ function Register() {
                         updateAvailability(
                           day,
                           'enabled',
-                          e.target.checked
+                          e.target.checked,
                         )
                       }
                     />
@@ -1049,7 +1288,7 @@ function Register() {
                 value={currentAvailability}
                 onChange={(e) =>
                   setCurrentAvailability(
-                    e.target.value as AvailabilityStatus | ''
+                    e.target.value as AvailabilityStatus | '',
                   )
                 }
                 required
@@ -1209,7 +1448,8 @@ function Register() {
               isSubmitting ||
               !passwordIsStrong ||
               !passwordsMatch ||
-              !availabilityIsValid
+              !availabilityIsValid ||
+              !faydaVerified
             }
           >
             {isSubmitting

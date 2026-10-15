@@ -683,6 +683,20 @@ body {
 }
 
 
+/* DATE OF BIRTH */
+
+.dob-input {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.dob-input input {
+    flex: 1;
+    min-width: 0;
+}
+
+
 /* VERIFICATION */
 
 .verification-notice {
@@ -733,6 +747,15 @@ body {
     color: #d32f2f;
     background-color: #ffebee;
     border: 1px solid #ef9a9a;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+}
+
+.register-success {
+    color: #198754;
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
     padding: 12px;
     border-radius: 6px;
     margin-bottom: 20px;

@@ -25,6 +25,7 @@ export interface RegisterData {
   accountType: 'INDIVIDUAL' | 'HOSPITAL'
 
   faydaId?: string
+  dateOfBirth?: string
   phone?: string
   additionalPhone?: string
   address?: string
