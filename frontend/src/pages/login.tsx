@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { login } from '../services/auth.service'
 
@@ -11,6 +12,7 @@ function Login() {
   const [loading, setLoading] = useState(false)
 
   const { loginUser } = useAuth()
+  const navigate = useNavigate()
 
   async function handleLogin(e: FormEvent) {
     e.preventDefault()
@@ -30,8 +32,12 @@ function Login() {
 
       loginUser(response.token, response.user)
 
-      window.location.href = '/'
-    } catch (error) {
+if (response.user.accountType === 'INDIVIDUAL') {
+  navigate('/donor-dashboard', { replace: true })
+} else if (response.user.accountType === 'HOSPITAL') {
+  navigate('/hospital-dashboard', { replace: true })
+}}
+    catch (error) {
       if (error instanceof Error) {
         setError(error.message)
       } else {
