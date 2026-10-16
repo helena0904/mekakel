@@ -7,6 +7,8 @@ import faydaRoutes from './routes/fayda.routes'
 import donorRoutes from './routes/donor.routes'
 import hospitalRoutes from './routes/hospital.routes'
 import inventoryRoutes from './routes/inventory.routes'
+import bloodRequestRoutes from './routes/blood-request.routes'
+import matchingRoutes from './routes/matching.routes'
 
 function parseTrustProxy(): boolean | number {
   const raw = process.env.TRUST_PROXY?.trim()
@@ -60,6 +62,8 @@ export function createApp(): Express {
   app.use('/api/donor', donorRoutes)
   app.use('/api/hospital', hospitalRoutes)
   app.use('/api/inventory', inventoryRoutes)
+  app.use('/api/requests', bloodRequestRoutes)
+  app.use('/api/matching', matchingRoutes)
 
   app.get('/', (_req, res) => {
     res.json({

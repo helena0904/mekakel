@@ -21,11 +21,19 @@ export type BloodUnitStatusValue =
 
 export type ExpiryAlertStatus = 'EXPIRED' | 'EXPIRING_SOON'
 
+export type BloodComponent =
+  | 'WHOLE_BLOOD'
+  | 'RED_CELLS'
+  | 'PLASMA'
+  | 'PLATELETS'
+  | 'CRYOPRECIPITATE'
+
 export interface BloodUnit {
   id: number
   hospitalProfileId: number
   bagId: string
   bloodType: BloodType
+  component: BloodComponent
   collectionDate: string
   expiryDate: string
   screeningStatus: ScreeningStatusValue
@@ -70,6 +78,7 @@ export interface InventorySummary {
 export interface BloodUnitInput {
   bagId: string
   bloodType: BloodType
+  component?: BloodComponent
   collectionDate: string
   expiryDate: string
   screeningStatus?: ScreeningStatusValue
@@ -82,6 +91,7 @@ export interface BloodUnitInput {
 export interface BloodUnitFilters {
   search?: string
   bloodType?: BloodType
+  component?: BloodComponent
   status?: BloodUnitStatusValue
   screeningStatus?: ScreeningStatusValue
   confirmationStatus?: ConfirmationStatusValue
@@ -200,4 +210,15 @@ export const BLOOD_UNIT_STATUS_LABELS: Record<
   RESERVED: 'Reserved',
   USED: 'Used',
   DISCARDED: 'Discarded',
+}
+
+export const BLOOD_COMPONENT_LABELS: Record<
+  BloodComponent,
+  string
+> = {
+  WHOLE_BLOOD: 'Whole blood',
+  RED_CELLS: 'Red cells',
+  PLASMA: 'Plasma',
+  PLATELETS: 'Platelets',
+  CRYOPRECIPITATE: 'Cryoprecipitate',
 }

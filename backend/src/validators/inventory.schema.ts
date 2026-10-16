@@ -24,6 +24,14 @@ export const BLOOD_UNIT_STATUSES = [
   'DISCARDED',
 ] as const
 
+export const BLOOD_COMPONENTS = [
+  'WHOLE_BLOOD',
+  'RED_CELLS',
+  'PLASMA',
+  'PLATELETS',
+  'CRYOPRECIPITATE',
+] as const
+
 const isoDate = (label: string) =>
   z
     .string()
@@ -42,6 +50,8 @@ export const createBloodUnitSchema = z
       .max(64, 'Bag ID is too long'),
 
     bloodType: z.enum(BLOOD_TYPES),
+
+    component: z.enum(BLOOD_COMPONENTS).optional(),
 
     collectionDate: isoDate('collection date'),
 
@@ -74,6 +84,8 @@ export const updateBloodUnitSchema = z.object({
 
   bloodType: z.enum(BLOOD_TYPES).optional(),
 
+  component: z.enum(BLOOD_COMPONENTS).optional(),
+
   collectionDate: isoDate('collection date').optional(),
 
   expiryDate: isoDate('expiry date').optional(),
@@ -95,6 +107,8 @@ export const listBloodUnitsQuerySchema = z.object({
   search: z.string().trim().max(100).optional(),
 
   bloodType: z.enum(BLOOD_TYPES).optional(),
+
+  component: z.enum(BLOOD_COMPONENTS).optional(),
 
   status: z.enum(BLOOD_UNIT_STATUSES).optional(),
 

@@ -11,6 +11,7 @@ export async function resetDatabase(): Promise<void> {
     prisma.donorAvailabilitySchedule.deleteMany(),
     prisma.donationRecord.deleteMany(),
     prisma.bloodUnit.deleteMany(),
+    prisma.bloodRequest.deleteMany(),
     prisma.hospitalStaffMember.deleteMany(),
     prisma.donorProfile.deleteMany(),
     prisma.hospitalProfile.deleteMany(),

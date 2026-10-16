@@ -137,6 +137,11 @@ function HospitalDashboard() {
                     Blood inventory and expiry alerts
                   </Link>
                 </li>
+                <li>
+                  <Link to="/hospital/requests">
+                    Blood requests and matching sources
+                  </Link>
+                </li>
               </ul>
             </section>
           </>

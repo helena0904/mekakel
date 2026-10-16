@@ -1,5 +1,6 @@
 import type { BloodUnit } from '../../services/inventory.service'
 import {
+  BLOOD_COMPONENT_LABELS,
   BLOOD_UNIT_STATUS_LABELS,
   CONFIRMATION_STATUS_LABELS,
   SCREENING_STATUS_LABELS,
@@ -53,6 +54,7 @@ function BloodUnitTable({
           <tr>
             <th>Bag ID</th>
             <th>Type</th>
+            <th>Component</th>
             <th>Collected</th>
             <th>Expires</th>
             <th>Screening</th>
@@ -72,6 +74,10 @@ function BloodUnitTable({
                 <td>{unit.bagId}</td>
 
                 <td>{BLOOD_TYPE_LABELS[unit.bloodType]}</td>
+
+                <td>
+                  {BLOOD_COMPONENT_LABELS[unit.component]}
+                </td>
 
                 <td>{formatDate(unit.collectionDate)}</td>
 

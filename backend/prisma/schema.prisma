@@ -91,6 +91,26 @@ enum BloodUnitStatus {
   DISCARDED
 }
 
+enum BloodComponent {
+  WHOLE_BLOOD
+  RED_CELLS
+  PLASMA
+  PLATELETS
+  CRYOPRECIPITATE
+}
+
+enum RequestUrgency {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+enum BloodRequestStatus {
+  OPEN
+  FULFILLED
+  CANCELLED
+}
+
 model User {
   id              Int         @id @default(autoincrement())
   email           String      @unique
@@ -199,6 +219,7 @@ model HospitalProfile {
 
   staff      HospitalStaffMember[]
   bloodUnits BloodUnit[]
+  bloodRequests BloodRequest[]
 }
 
 model HospitalStaffMember {
@@ -221,6 +242,7 @@ model BloodUnit {
   hospitalProfileId  Int
   bagId              String
   bloodType          BloodType
+  component          BloodComponent     @default(RED_CELLS)
   collectionDate     DateTime
   expiryDate         DateTime
   screeningStatus    ScreeningStatus    @default(PENDING)
@@ -240,6 +262,27 @@ model BloodUnit {
   @@index([hospitalProfileId])
   @@index([hospitalProfileId, bloodType])
   @@index([expiryDate])
+}
+
+model BloodRequest {
+  id                Int                @id @default(autoincrement())
+  hospitalProfileId Int
+  createdByUserId   Int
+  component         BloodComponent
+  bloodType         BloodType
+  requiredUnits     Int
+  urgency           RequestUrgency     @default(ROUTINE)
+  location          String?
+  notes             String?
+  status            BloodRequestStatus @default(OPEN)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  hospitalProfile HospitalProfile @relation(fields: [hospitalProfileId], references: [id], onDelete: Cascade)
+
+  @@index([hospitalProfileId])
+  @@index([status])
+  @@index([bloodType, component])
 }
 
 model MedicalReport {
