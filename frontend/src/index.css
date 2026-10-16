@@ -904,3 +904,109 @@ body {
 .login-button:hover {
     background-color: #004494;
 }
+
+.login-error {
+  color: #d32f2f;
+  background-color: #ffebee;
+  border: 1px solid #ef9a9a;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.forgot-password-back {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-top: 15px;
+}
+
+.forgot-password-success {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.forgot-password-success h2 {
+  margin-bottom: 15px;
+}
+
+.forgot-password-success p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.forgot-password-retry {
+  display: block;
+  margin: 20px auto 0;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  color: #0056b3;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 14px;
+}
+
+.forgot-password-retry:hover {
+  color: #003d80;
+}
+
+.login-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reset-password-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.reset-password-toggle input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.reset-password-success {
+  padding: 24px;
+  background-color: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 8px;
+  text-align: center;
+  color: #198754;
+}
+
+.reset-password-success h2 {
+  margin-bottom: 15px;
+}
+
+.reset-password-success p {
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.reset-password-invalid {
+  text-align: center;
+}
+
+.reset-password-note {
+  color: #666;
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.reset-password-link {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  margin-top: 20px;
+}
+
+.reset-password-link:hover {
+  text-decoration: none;
+}

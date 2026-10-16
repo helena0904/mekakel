@@ -1,14 +1,178 @@
 import { Router } from 'express'
+import { rateLimit } from 'express-rate-limit'
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
-import fs from 'fs'
+import fs from 'node:fs'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { Prisma } from '@prisma/client'
+
 import prisma from '../lib/prisma'
+import { PostgresRateLimitStore } from '../lib/rate-limit-store'
 import { verifyMockFayda } from '../services/fayda.service'
 import { handleMedicalReportUpload } from '../middleware/upload.middleware'
+import { sendPasswordResetEmail } from '../services/email.service'
+import {
+  authenticateToken,
+  type AuthRequest,
+} from '../middleware/auth.middleware'
 
 const router = Router()
+
+const RESET_EXPIRY_MINUTES = 15
+
+const GENERIC_RESET_MESSAGE =
+  'If an account exists with that email, a password reset link will be sent.'
+
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new PostgresRateLimitStore('register'),
+  message: {
+    message: 'Too many registration attempts. Please try again later.',
+  },
+})
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new PostgresRateLimitStore('login'),
+  message: {
+    message: 'Too many login attempts. Please try again later.',
+  },
+})
+
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new PostgresRateLimitStore('forgot-password'),
+  message: {
+    message: 'Too many password reset requests. Please try again later.',
+  },
+})
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  store: new PostgresRateLimitStore('reset-password'),
+  message: {
+    message: 'Too many reset attempts. Please try again later.',
+  },
+})
+
+function isValidDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false
+  }
+
+  const date = new Date(value)
+
+  return (
+    !Number.isNaN(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value
+  )
+}
+
+function getAge(dateOfBirth: Date): number {
+  const today = new Date()
+
+  let age =
+    today.getUTCFullYear() -
+    dateOfBirth.getUTCFullYear()
+
+  if (
+    today.getUTCMonth() < dateOfBirth.getUTCMonth() ||
+    (
+      today.getUTCMonth() === dateOfBirth.getUTCMonth() &&
+      today.getUTCDate() < dateOfBirth.getUTCDate()
+    )
+  ) {
+    age--
+  }
+
+  return age
+}
+
+function hashResetToken(token: string): string {
+  return createHash('sha256')
+    .update(token)
+    .digest('hex')
+}
+
+async function sendPasswordResetEmailWithRetry(
+  email: string,
+  token: string,
+  attempts = 3
+): Promise<void> {
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      await sendPasswordResetEmail(email, token)
+      return
+    } catch (error) {
+      lastError = error
+
+      if (attempt < attempts) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, 250 * attempt)
+        )
+      }
+    }
+  }
+
+  throw lastError
+}
+
+const passwordSchema = z.string()
+  .min(8, 'Password must have at least 8 characters')
+  .refine(
+    (value) => Buffer.byteLength(value, 'utf8') <= 72,
+    'Password is too long'
+  )
+  .refine(
+    (value) => /[A-Z]/.test(value),
+    'Password must include an uppercase letter'
+  )
+  .refine(
+    (value) => /[a-z]/.test(value),
+    'Password must include a lowercase letter'
+  )
+  .refine(
+    (value) => /[0-9]/.test(value),
+    'Password must include a number'
+  )
+  .refine(
+    (value) => /[^A-Za-z0-9]/.test(value),
+    'Password must include a special character'
+  )
+
+const optionalNumber = (schema: z.ZodNumber) =>
+  z.preprocess(
+    (value) =>
+      value === '' || value == null
+        ? undefined
+        : Number(value),
+    schema.optional()
+  )
+
+const optionalDate = z.preprocess(
+  (value) =>
+    value === '' || value == null
+      ? undefined
+      : value,
+  z.string()
+    .refine(isValidDate, 'Invalid date')
+    .optional()
+)
 
 const availabilitySchema = z.object({
   day: z.enum([
@@ -21,94 +185,79 @@ const availabilitySchema = z.object({
     'SUNDAY',
   ]),
   time: z.string().regex(
-    /^([01]\d|2[0-3]):([0-5]\d)$/,
-    'Time must be in HH:mm format'
+    /^([01]\d|2[0-3]):[0-5]\d$/,
+    'Time must use HH:mm format'
   ),
 })
 
-const optionalNumber = (schema: z.ZodNumber) =>
-  z.preprocess(
-    (value) =>
-      value === '' || value === null || value === undefined
-        ? undefined
-        : Number(value),
-    schema.optional()
-  )
-
-const optionalDate = z.preprocess(
-  (value) =>
-    value === '' || value === null || value === undefined
-      ? undefined
-      : value,
-  z
-    .string()
-    .refine(
-      (value) => !Number.isNaN(Date.parse(value)),
-      'Invalid donation date'
-    )
-    .optional()
-)
-
-const optionalAvailabilities = z.preprocess(
+const availabilityList = z.preprocess(
   (value) => {
-    if (value === '' || value === null || value === undefined) {
+    if (value === '' || value == null) {
       return undefined
     }
 
-    if (typeof value === 'string') {
-      try {
-        return JSON.parse(value)
-      } catch {
-        return value
-      }
+    if (typeof value !== 'string') {
+      return value
     }
 
-    return value
+    try {
+      return JSON.parse(value)
+    } catch {
+      return value
+    }
   },
   z.array(availabilitySchema).max(7).optional()
 )
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
   name: z.string().trim().min(2),
+  email: z.string().trim().toLowerCase().email(),
+  password: passwordSchema,
   accountType: z.enum(['INDIVIDUAL', 'HOSPITAL']),
 
-  faydaId: z
-    .string()
+  faydaId: z.string()
     .trim()
-    .regex(/^\d{16}$/, 'Fayda ID must be exactly 16 digits')
+    .regex(/^\d{16}$/)
     .optional(),
-  dateOfBirth: z
-    .string()
-    .refine(
-      (value) => !Number.isNaN(Date.parse(value)),
-      'Invalid date of birth'
-    )
-    .optional(),
-  phone: z.string().optional(),
-  additionalPhone: z.string().optional(),
-  address: z.string().optional(),
+
+  dateOfBirth: optionalDate,
+  phone: z.string().trim().optional(),
+  additionalPhone: z.string().trim().optional(),
+  address: z.string().trim().optional(),
 
   age: optionalNumber(z.number().int().min(18)),
   weight: optionalNumber(z.number().positive()),
   height: optionalNumber(z.number().positive()),
 
-  currentAvailability: z
-    .enum(['AVAILABLE', 'UNAVAILABLE'])
-    .optional(),
+  currentAvailability: z.enum([
+    'AVAILABLE',
+    'UNAVAILABLE',
+  ]).optional(),
 
   lastDonation: optionalDate,
-
-  availabilities: optionalAvailabilities,
-
+  availabilities: availabilityList,
   reportType: z.enum(['IMAGE', 'PDF']).optional(),
+  hospitalName: z.string().trim().optional(),
+})
 
-  hospitalName: z.string().optional(),
+const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(1),
+  accountType: z.enum(['INDIVIDUAL', 'HOSPITAL']),
+})
+
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email(),
+})
+
+const resetPasswordSchema = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/),
+  password: passwordSchema,
 })
 
 router.post(
   '/register',
+  registerLimiter,
   handleMedicalReportUpload,
   async (req, res) => {
     res.on('finish', () => {
@@ -118,28 +267,17 @@ router.post(
     })
 
     try {
-      const result = registerSchema.safeParse(req.body)
+      const parsed = registerSchema.safeParse(req.body)
 
-      if (!result.success) {
+      if (!parsed.success) {
         return res.status(400).json({
           message: 'Invalid registration data',
-          errors: result.error.issues,
+          errors: parsed.error.issues,
         })
       }
 
-      const data = result.data
-
-      const existingUser = await prisma.user.findUnique({
-        where: {
-          email: data.email,
-        },
-      })
-
-      if (existingUser) {
-        return res.status(409).json({
-          message: 'Email is already registered',
-        })
-      }
+      const data = parsed.data
+      const file = req.file
 
       if (data.accountType === 'INDIVIDUAL') {
         if (
@@ -164,34 +302,72 @@ router.post(
 
         if (!faydaResult.verified) {
           return res.status(400).json({
-            message:
-              faydaResult.message ||
-              'Fayda identity verification failed.',
+            message: faydaResult.message,
           })
         }
 
-        const file = req.file
+        const birthDate = new Date(data.dateOfBirth)
+
+        if (
+          birthDate > new Date() ||
+          getAge(birthDate) < 18 ||
+          getAge(birthDate) !== data.age
+        ) {
+          return res.status(400).json({
+            message:
+              'Age must be at least 18 and match date of birth',
+          })
+        }
+
+        if (
+          data.lastDonation &&
+          new Date(data.lastDonation) > new Date()
+        ) {
+          return res.status(400).json({
+            message:
+              'Last donation date cannot be in the future',
+          })
+        }
 
         if (!file || !data.reportType) {
           return res.status(400).json({
-            message: 'Please upload your medical report.',
+            message: 'Please upload a medical report',
           })
         }
 
-        const typeMatches =
+        const validFileType =
           data.reportType === 'PDF'
             ? file.mimetype === 'application/pdf'
-            : file.mimetype.startsWith('image/')
+            : [
+                'image/jpeg',
+                'image/png',
+                'image/webp',
+              ].includes(file.mimetype)
 
-        if (!typeMatches) {
+        if (!validFileType) {
           return res.status(400).json({
             message:
-              'Medical report does not match the selected file type',
+              'Medical report type does not match the uploaded file',
           })
         }
-      }
 
-      if (data.accountType === 'HOSPITAL') {
+        const duplicateFayda =
+          await prisma.donorProfile.findFirst({
+            where: {
+              faydaId: data.faydaId,
+            },
+            select: {
+              id: true,
+            },
+          })
+
+        if (duplicateFayda) {
+          return res.status(409).json({
+            message:
+              'This Mock Fayda identity is already registered',
+          })
+        }
+      } else {
         if (
           !data.hospitalName ||
           !data.address ||
@@ -202,24 +378,47 @@ router.post(
           })
         }
 
-        if (req.file) fs.unlink(req.file.path, () => {})
+        if (file) {
+          return res.status(400).json({
+            message:
+              'Hospital registration cannot include a donor medical report',
+          })
+        }
       }
 
-      const selectedDays = data.availabilities ?? []
+      const selectedDays =
+        data.accountType === 'INDIVIDUAL'
+          ? data.availabilities ?? []
+          : []
 
       const days = selectedDays.map(
-        (availability) => availability.day
+        (item) => item.day
       )
 
       if (new Set(days).size !== days.length) {
         return res.status(400).json({
-          message: 'A day can only be selected once',
+          message: 'Availability days cannot repeat',
+        })
+      }
+
+      const existingUser = await prisma.user.findUnique({
+        where: {
+          email: data.email,
+        },
+        select: {
+          id: true,
+        },
+      })
+
+      if (existingUser) {
+        return res.status(409).json({
+          message: 'Email is already registered',
         })
       }
 
       const passwordHash = await bcrypt.hash(
         data.password,
-        10
+        12
       )
 
       const role =
@@ -227,87 +426,100 @@ router.post(
           ? 'DONOR'
           : 'HOSPITAL_STAFF'
 
-      const user = await prisma.$transaction(async (tx) => {
-        const created = await tx.user.create({
-          data: {
-            email: data.email,
-            passwordHash,
-            name: data.name,
-            accountType: data.accountType,
-            role,
-            isActive: data.accountType !== 'HOSPITAL',
+      const user = await prisma.$transaction(
+        async (tx) => {
+          const created = await tx.user.create({
+            data: {
+              name: data.name,
+              email: data.email,
+              passwordHash,
+              accountType: data.accountType,
+              role,
+              isActive: true,
 
-            ...(data.accountType === 'INDIVIDUAL'
-              ? {
-                  donorProfile: {
-                    create: {
-                      faydaId: data.faydaId || null,
-                      dateOfBirth: data.dateOfBirth
-                        ? new Date(data.dateOfBirth)
-                        : null,
-                      phone: data.phone!,
-                      additionalPhone:
-                        data.additionalPhone || null,
-                      address: data.address!,
-                      age: data.age!,
-                      weight: data.weight!,
-                      height: data.height!,
-                      currentAvailability:
-                        data.currentAvailability ??
-                        'UNAVAILABLE',
-                      lastDonation: data.lastDonation
-                        ? new Date(data.lastDonation)
-                        : null,
-
-                      availabilities: {
-                        create: selectedDays.map(
-                          (availability) => ({
-                            day: availability.day,
-                            time: availability.time,
-                          })
+              ...(data.accountType === 'INDIVIDUAL'
+                ? {
+                    donorProfile: {
+                      create: {
+                        faydaId: data.faydaId!,
+                        dateOfBirth: new Date(
+                          data.dateOfBirth!
                         ),
+                        phone: data.phone!,
+                        additionalPhone:
+                          data.additionalPhone || null,
+                        address: data.address!,
+                        age: data.age!,
+                        weight: data.weight!,
+                        height: data.height!,
+                        currentAvailability:
+                          data.currentAvailability ??
+                          'UNAVAILABLE',
+                        lastDonation: data.lastDonation
+                          ? new Date(data.lastDonation)
+                          : null,
+                        verificationStatus: 'PENDING',
+                        availabilities: {
+                          create: selectedDays.map(
+                            (item) => ({
+                              day: item.day,
+                              time: item.time,
+                            })
+                          ),
+                        },
                       },
                     },
-                  },
-                }
-              : {
-                  hospitalProfile: {
-                    create: {
-                      hospitalName: data.hospitalName!,
-                      address: data.address!,
-                      phone: data.phone!,
-                      additionalPhone:
-                        data.additionalPhone || null,
-                      isVerified: false,
+                  }
+                : {
+                    hospitalProfile: {
+                      create: {
+                        hospitalName:
+                          data.hospitalName!,
+                        phone: data.phone!,
+                        address: data.address!,
+                        additionalPhone:
+                          data.additionalPhone || null,
+                        isVerified: true,
+                      },
                     },
-                  },
-                }),
-          },
-          include: { donorProfile: true },
-        })
-
-        if (data.accountType === 'INDIVIDUAL') {
-          await tx.medicalReport.create({
-            data: {
-              donorProfileId: created.donorProfile!.id,
-              uploadedByUserId: created.id,
-              reportType: data.reportType!,
-              fileUrl: req.file!.filename,
+                  }),
+            },
+            include: {
+              donorProfile: true,
             },
           })
-        }
 
-        return created
-      })
+          if (
+            data.accountType === 'INDIVIDUAL'
+          ) {
+            await tx.medicalReport.create({
+              data: {
+                donorProfileId:
+                  created.donorProfile!.id,
+                uploadedByUserId: created.id,
+                reportType: data.reportType!,
+                fileUrl: file!.filename,
+                verificationStatus: 'PENDING',
+              },
+            })
+          }
+
+          return created
+        }
+      )
 
       return res.status(201).json({
-        message: 'Registration successful',
+        message:
+          data.accountType === 'INDIVIDUAL'
+            ? 'Registration successful. Mock Fayda verification completed. Medical review pending.'
+            : 'Hospital registration submitted. Administrator approval pending.',
         user: {
           id: user.id,
-          email: user.email,
           name: user.name,
-          accountType: user.accountType,
+          email: user.email,
           role: user.role,
+          accountType: user.accountType,
+          isActive: user.isActive,
         },
       })
     } catch (error) {
@@ -316,62 +528,44 @@ router.post(
         error.code === 'P2002'
       ) {
         return res.status(409).json({
-          message: 'Email is already registered',
+          message:
+            'An account with this information already exists',
         })
       }
 
       console.error('Registration error:', error)
 
       return res.status(500).json({
-        message: 'Something went wrong. Please try again.',
+        message: 'Registration failed',
       })
     }
   }
 )
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(1),
-  accountType: z.enum(['INDIVIDUAL', 'HOSPITAL']),
-})
-
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
-    const result = loginSchema.safeParse(req.body)
+    const parsed = loginSchema.safeParse(req.body)
 
-    if (!result.success) {
+    if (!parsed.success) {
       return res.status(400).json({
-        message: 'Invalid login data',
-        errors: result.error.issues,
+        message: 'Invalid login information',
       })
     }
 
-    const { email, password, accountType } = result.data
+    const { email, password, accountType } = parsed.data
 
     const user = await prisma.user.findUnique({
-      where: { email },
-      include: { hospitalProfile: true },
+      where: {
+        email,
+      },
+      include: {
+        hospitalProfile: true,
+      },
     })
 
     if (!user || user.accountType !== accountType) {
       return res.status(401).json({
         message: 'Invalid email or password',
-      })
-    }
-
-    if (
-      user.accountType === 'HOSPITAL' &&
-      (!user.hospitalProfile || !user.hospitalProfile.isVerified)
-    ) {
-      return res.status(403).json({
-        message:
-          'Your hospital account is pending administrator verification.',
-      })
-    }
-
-    if (!user.isActive) {
-      return res.status(403).json({
-        message: 'Your account is inactive',
       })
     }
 
@@ -386,11 +580,18 @@ router.post('/login', async (req, res) => {
       })
     }
 
+    if (!user.isActive) {
+      return res.status(403).json({
+        message: 'Account is inactive',
+      })
+    }
+
     const secret = process.env.JWT_SECRET
 
     if (!secret) {
       return res.status(500).json({
-        message: 'JWT secret is not configured',
+        message:
+          'Server authentication is not configured',
       })
     }
 
@@ -399,10 +600,12 @@ router.post('/login', async (req, res) => {
         userId: user.id,
         role: user.role,
         accountType: user.accountType,
+        passwordVersion: user.passwordVersion,
       },
       secret,
       {
         expiresIn: '1h',
+        jwtid: randomUUID(),
       }
     )
 
@@ -411,19 +614,269 @@ router.post('/login', async (req, res) => {
       token,
       user: {
         id: user.id,
-        email: user.email,
         name: user.name,
-        accountType: user.accountType,
+        email: user.email,
         role: user.role,
+        accountType: user.accountType,
       },
     })
   } catch (error) {
-    console.error(error)
+    console.error('Login error:', error)
 
     return res.status(500).json({
-      message: 'Something went wrong',
+      message: 'Login failed',
     })
   }
 })
+
+router.post(
+  '/forgot-password',
+  forgotPasswordLimiter,
+  async (req, res) => {
+    const parsed = forgotPasswordSchema.safeParse(
+      req.body
+    )
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: 'Please enter a valid email address',
+      })
+    }
+
+    try {
+      const user = await prisma.user.findUnique({
+        where: {
+          email: parsed.data.email,
+        },
+        select: {
+          id: true,
+          email: true,
+        },
+      })
+
+      if (user) {
+        const token = randomBytes(32)
+          .toString('hex')
+
+        const tokenHash = hashResetToken(token)
+
+        const expiresAt = new Date(
+          Date.now() +
+            RESET_EXPIRY_MINUTES * 60 * 1000
+        )
+
+        await prisma.passwordResetToken.upsert({
+          where: {
+            userId: user.id,
+          },
+          create: {
+            userId: user.id,
+            tokenHash,
+            expiresAt,
+          },
+          update: {
+            tokenHash,
+            expiresAt,
+            createdAt: new Date(),
+          },
+        })
+
+        try {
+          await sendPasswordResetEmailWithRetry(
+            user.email,
+            token
+          )
+        } catch (emailError) {
+          console.error(
+            '[auth] password reset email delivery failed',
+            {
+              userId: user.id,
+              error:
+                emailError instanceof Error
+                  ? emailError.message
+                  : String(emailError),
+            }
+          )
+
+          await prisma.passwordResetToken.deleteMany({
+            where: {
+              userId: user.id,
+              tokenHash,
+            },
+          })
+        }
+      }
+    } catch (error) {
+      console.error(
+        'Forgot password error:',
+        error
+      )
+    }
+
+    return res.status(200).json({
+      message: GENERIC_RESET_MESSAGE,
+    })
+  }
+)
+
+router.post(
+  '/reset-password',
+  resetPasswordLimiter,
+  async (req, res) => {
+    const parsed = resetPasswordSchema.safeParse(
+      req.body
+    )
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        message: 'Invalid reset token or password',
+      })
+    }
+
+    const { token, password } = parsed.data
+    const tokenHash = hashResetToken(token)
+
+    try {
+      const resetRecord =
+        await prisma.passwordResetToken.findUnique({
+          where: {
+            tokenHash,
+          },
+          select: {
+            id: true,
+            expiresAt: true,
+          },
+        })
+
+      if (
+        !resetRecord ||
+        resetRecord.expiresAt <= new Date()
+      ) {
+        return res.status(400).json({
+          message:
+            'Password reset link is invalid or expired',
+        })
+      }
+
+      const passwordHash = await bcrypt.hash(
+        password,
+        12
+      )
+
+      const updated = await prisma.$transaction(
+        async (tx) => {
+          const record =
+            await tx.passwordResetToken.findUnique({
+              where: {
+                tokenHash,
+              },
+              select: {
+                id: true,
+                userId: true,
+                expiresAt: true,
+              },
+            })
+
+          if (
+            !record ||
+            record.expiresAt <= new Date()
+          ) {
+            return false
+          }
+
+          const consumed =
+            await tx.passwordResetToken.deleteMany({
+              where: {
+                id: record.id,
+                tokenHash,
+                expiresAt: {
+                  gt: new Date(),
+                },
+              },
+            })
+
+          if (consumed.count !== 1) {
+            return false
+          }
+
+          await tx.user.update({
+            where: {
+              id: record.userId,
+            },
+            data: {
+              passwordHash,
+              passwordVersion: {
+                increment: 1,
+              },
+            },
+          })
+
+          return true
+        }
+      )
+
+      if (!updated) {
+        return res.status(400).json({
+          message:
+            'Password reset link is invalid or expired',
+        })
+      }
+
+      return res.status(200).json({
+        message:
+          'Password updated successfully. Please log in again.',
+      })
+    } catch (error) {
+      console.error(
+        'Reset password error:',
+        error
+      )
+
+      return res.status(500).json({
+        message: 'Unable to reset password',
+      })
+    }
+  }
+)
+
+router.post(
+  '/logout',
+  authenticateToken,
+  async (req: AuthRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          message: 'Authentication required',
+        })
+      }
+
+      const { jti, exp } = req.user
+
+      await prisma.$transaction([
+        prisma.revokedToken.upsert({
+          where: { jti },
+          create: {
+            jti,
+            expiresAt: new Date(exp * 1000),
+          },
+          update: {},
+        }),
+        prisma.revokedToken.deleteMany({
+          where: { expiresAt: { lt: new Date() } },
+        }),
+      ])
+
+      return res.status(200).json({
+        message: 'Logged out successfully',
+      })
+    } catch (error) {
+      console.error('Logout error:', error)
+
+      return res.status(500).json({
+        message: 'Unable to log out',
+      })
+    }
+  }
+)
 
 export default router

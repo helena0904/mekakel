@@ -1,20 +1,23 @@
+
 import { createContext } from 'react'
 
-interface User {
+export interface AuthUser {
   id: number
-  email: string
   name: string
+  email: string
   accountType: 'INDIVIDUAL' | 'HOSPITAL'
   role: string
 }
 
-interface AuthContextType {
-  user: User | null
+export interface AuthContextType {
+  user: AuthUser | null
   token: string | null
-  loginUser: (token: string, user: User) => void
+  isLoading: boolean
+  loginUser: (token: string, user: AuthUser) => void
   logout: () => void
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(
-  undefined
-)
+export const AuthContext = createContext<
+  AuthContextType | undefined
+>(undefined)
+

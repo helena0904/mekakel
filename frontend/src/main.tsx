@@ -1,13 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
 import App from './App'
-import { AuthProvider } from './context/AuthContext.tsx'
+import { AuthProvider } from './context/AuthProvider'
+import './index.css'
 
-createRoot(document.getElementById('root')!).render(
+const root = document.getElementById('root')
+
+if (!root) {
+  throw new Error('Root element not found')
+}
+
+createRoot(root).render(
   <StrictMode>
     <AuthProvider>
       <App />
     </AuthProvider>
-  </StrictMode>,
+  </StrictMode>
 )

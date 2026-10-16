@@ -19,13 +19,41 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
       where: {
         id: req.user.userId,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        accountType: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+
         donorProfile: {
-          include: {
-            availabilities: true,
+          select: {
+            id: true,
+            phone: true,
+            address: true,
+            bloodType: true,
+            verificationStatus: true,
+            currentAvailability: true,
+            availabilities: {
+              select: {
+                day: true,
+                time: true,
+              },
+            },
           },
         },
-        hospitalProfile: true,
+
+        hospitalProfile: {
+          select: {
+            id: true,
+            hospitalName: true,
+            address: true,
+            phone: true,
+            isVerified: true,
+          },
+        },
       },
     })
 
@@ -35,7 +63,7 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
       })
     }
 
-    return res.json({
+    return res.status(200).json({
       message: 'Authenticated user',
       user,
     })

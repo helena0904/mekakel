@@ -1,12 +1,12 @@
-import api from './api'
+import apiRequest from './api'
 
-export interface FaydaVerificationData {
+export interface FaydaVerificationInput {
   faydaId: string
   fullName: string
   dateOfBirth: string
 }
 
-export interface FaydaVerificationResponse {
+export interface FaydaVerificationResult {
   success: boolean
   simulated: boolean
   message: string
@@ -17,15 +17,14 @@ export interface FaydaVerificationResponse {
 }
 
 export async function verifyFayda(
-  data: FaydaVerificationData,
-): Promise<FaydaVerificationResponse> {
-  const response = await api('/fayda/verify', {
+  input: FaydaVerificationInput,
+): Promise<FaydaVerificationResult> {
+  return apiRequest<FaydaVerificationResult>('/fayda/verify', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      faydaId: input.faydaId.trim(),
+      fullName: input.fullName.trim(),
+      dateOfBirth: input.dateOfBirth.trim(),
+    }),
   })
-
-  return response as FaydaVerificationResponse
 }

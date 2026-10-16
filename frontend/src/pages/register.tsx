@@ -1,8 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { login, register } from '../services/auth.service'
 import { verifyFayda } from '../services/fayda.service'
 import { useAuth } from '../hooks/useAuth'
+import { dashboardPathFor } from '../utils/dashboard'
+
 
 type Weekday =
   | 'MONDAY'
@@ -59,7 +61,7 @@ const emptyAvailability: Record<Weekday, Availability> = {
 
 function Register() {
   const navigate = useNavigate()
-  const { loginUser } = useAuth()
+  const { loginUser, user, token } = useAuth()
 
   const [registrationType, setRegistrationType] = useState('')
   const [showRegistration, setShowRegistration] = useState(false)
@@ -103,6 +105,7 @@ function Register() {
 
   const [reportType, setReportType] = useState<ReportType | ''>('')
   const [medicalReport, setMedicalReport] = useState<File | null>(null)
+  const [medicalReportConsent, setMedicalReportConsent] = useState(false)
   const [lastDonation, setLastDonation] = useState('')
 
   const [hospitalName, setHospitalName] = useState('')
@@ -147,6 +150,19 @@ function Register() {
 
     return `${dobYear}-${paddedMonth}-${paddedDay}`
   }, [dobDay, dobMonth, dobYear])
+
+  const calculateAge = (isoDate: string): number => {
+    const [year, month, day] = isoDate.split('-').map(Number)
+    const now = new Date()
+    let years = now.getFullYear() - year
+    if (
+      now.getMonth() + 1 < month ||
+      (now.getMonth() + 1 === month && now.getDate() < day)
+    ) {
+      years--
+    }
+    return years
+  }
 
   const resetFaydaVerification = () => {
     setFaydaVerified(false)
@@ -262,10 +278,10 @@ function Register() {
         dateOfBirth,
       })
 
-      if (result.success) {
+      if (result.success && result.simulated === true) {
         setFaydaVerified(true)
         setFaydaMessage(
-          'Mock identity verification successful. You can continue registration.',
+          'Simulated Fayda check passed. This does not verify an official identity.',
         )
         setFaydaMessageType('success')
       } else {
@@ -317,8 +333,8 @@ function Register() {
       return
     }
 
-    if (!dateOfBirth) {
-      setError('Please enter a valid date of birth.')
+    if (!dateOfBirth || dateOfBirth > today) {
+      setError('Please enter a valid date of birth that is not in the future.')
       return
     }
 
@@ -327,8 +343,9 @@ function Register() {
       return
     }
 
-    if (!Number.isInteger(Number(age)) || Number(age) < 18) {
-      setError('You must be at least 18 years old to register as a donor.')
+    const calculatedAge = calculateAge(dateOfBirth)
+    if (calculatedAge < 18 || Number(age) !== calculatedAge) {
+      setError('Age must be at least 18 and match your date of birth.')
       return
     }
 
@@ -339,6 +356,11 @@ function Register() {
 
     if (!Number.isFinite(Number(height)) || Number(height) <= 0) {
       setError('Height must be greater than zero.')
+      return
+    }
+
+    if (!medicalReportConsent) {
+      setError('Please consent to submitting your medical report.')
       return
     }
 
@@ -354,7 +376,7 @@ function Register() {
 
     if (
       reportType === 'IMAGE' &&
-      !medicalReport.type.startsWith('image/')
+      !['image/jpeg', 'image/png', 'image/webp'].includes(medicalReport.type)
     ) {
       setError('Please upload a valid image file.')
       return
@@ -395,15 +417,22 @@ function Register() {
         medicalReport,
       })
 
-      const response = await login({
-        email: donorEmail,
-        password,
-        accountType: 'INDIVIDUAL',
-      })
-
-      loginUser(response.token, response.user)
-
-      navigate('/donor-dashboard', { replace: true })
+      // Registration has already succeeded. If automatic sign-in fails,
+      // send the donor to login instead of asking them to register again.
+      try {
+        const response = await login({
+          email: donorEmail,
+          password,
+          accountType: 'INDIVIDUAL',
+        })
+        loginUser(response.token, response.user)
+        navigate(dashboardPathFor(response.user.accountType), { replace: true })
+      } catch {
+        navigate('/login', {
+          replace: true,
+          state: { registrationSuccess: true },
+        })
+      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -450,9 +479,22 @@ function Register() {
           : undefined,
       })
 
-      setSuccessMessage(
-        'Registration submitted. Your hospital or clinic account is pending administrator verification and cannot log in yet.',
-      )
+      // Registration succeeded. Sign the hospital in and send it to its
+      // dashboard. If automatic sign-in fails, fall back to the login page.
+      try {
+        const response = await login({
+          email: hospitalEmail,
+          password: hospitalPassword,
+          accountType: 'HOSPITAL',
+        })
+        loginUser(response.token, response.user)
+        navigate(dashboardPathFor(response.user.accountType), { replace: true })
+      } catch {
+        navigate('/login', {
+          replace: true,
+          state: { registrationSuccess: true },
+        })
+      }
     } catch (error) {
       setError(
         error instanceof Error
@@ -462,6 +504,17 @@ function Register() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // An already signed-in user should never see the registration page; send
+  // them straight to the dashboard that matches their account type.
+  if (user && token) {
+    return (
+      <Navigate
+        to={dashboardPathFor(user.accountType)}
+        replace
+      />
+    )
   }
 
   if (!registrationType) {
@@ -821,13 +874,13 @@ function Register() {
               <h2>Hospital / Clinic Verification</h2>
 
               <p>
-                Submitting this form does not immediately activate the
-                hospital or clinic account.
+                Your hospital or clinic account is activated as soon as you
+                submit this form.
               </p>
 
               <p>
-                The institution must first be reviewed and verified by an
-                authorized MEKAKEL administrator.
+                You will be signed in automatically and taken to your
+                hospital dashboard.
               </p>
             </section>
 
@@ -920,6 +973,32 @@ function Register() {
                 Enter your details and select Verify Identity before
                 submitting your donor registration.
               </p>
+
+              <details>
+                <summary>Test identities for this demo</summary>
+                <p>
+                  The simulated check only succeeds for these records.
+                  Use the exact ID, full name and date of birth:
+                </p>
+                <ul>
+                  <li>
+                    9999000000000001 &middot; Abebe Kebede &middot;
+                    2000-05-15
+                  </li>
+                  <li>
+                    9999000000000002 &middot; Hana Tesfaye &middot;
+                    1998-09-20
+                  </li>
+                  <li>
+                    9999000000000003 &middot; Mekdes Alemu &middot;
+                    2002-04-11
+                  </li>
+                  <li>
+                    9999000000000004 &middot; Dawit Bekele &middot;
+                    1995-12-03
+                  </li>
+                </ul>
+              </details>
             </div>
 
             <div className="form-group">
@@ -1026,8 +1105,8 @@ function Register() {
 
               {faydaVerified && (
                 <small>
-                  This result comes from fictional mock data and does not
-                  represent official identity verification.
+                  Mock Fayda checks your input format only; it does not
+                  confirm the identity against an official registry.
                 </small>
               )}
             </div>
@@ -1359,7 +1438,7 @@ function Register() {
                   name="medicalReport"
                   accept={
                     reportType === 'IMAGE'
-                      ? 'image/*'
+                      ? 'image/jpeg,image/png,image/webp'
                       : '.pdf,application/pdf'
                   }
                   onChange={(e) => {
@@ -1393,6 +1472,19 @@ function Register() {
                 report must be reviewed by an authorized Doctor/Verifier.
               </p>
             </div>
+
+            <label className="warning-checkbox">
+              <input
+                type="checkbox"
+                checked={medicalReportConsent}
+                onChange={(e) => setMedicalReportConsent(e.target.checked)}
+                required
+              />
+              <span>
+                I consent to submitting my medical report for review by
+                authorized healthcare verifiers in Mekakel.
+              </span>
+            </label>
           </section>
 
           <section className="form-section">
@@ -1449,7 +1541,8 @@ function Register() {
               !passwordIsStrong ||
               !passwordsMatch ||
               !availabilityIsValid ||
-              !faydaVerified
+              !faydaVerified ||
+              !medicalReportConsent
             }
           >
             {isSubmitting

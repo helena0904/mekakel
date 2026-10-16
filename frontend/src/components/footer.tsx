@@ -1,9 +1,13 @@
 function Footer() {
-    return (
-        <footer className="footer">
-            <p>© 2026 MEKAKEL. All rights reserved.</p>
-        </footer>
-    )
+  const currentYear = new Date().getFullYear()
+
+  return (
+    <footer className="footer">
+      <p>
+        © {currentYear} MEKAKEL. All rights reserved.
+      </p>
+    </footer>
+  )
 }
 
 export default Footer
