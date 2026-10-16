@@ -17,6 +17,11 @@ import ResetPassword from './pages/reset-password'
 import DonorDashboard from './pages/dashboard/donor-dashboard'
 import HospitalDashboard from './pages/dashboard/hospital-dasboard'
 
+import DonorProfilePage from './pages/donor/donor-profile'
+import DonorAvailabilityPage from './pages/donor/donor-availability'
+import DonorMedicalReportsPage from './pages/donor/donor-medical-reports'
+import DonorHistoryPage from './pages/donor/donor-history'
+
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
@@ -58,6 +63,26 @@ function App() {
           <Route
             path="/donor-dashboard"
             element={<DonorDashboard />}
+          />
+
+          <Route
+            path="/donor/profile"
+            element={<DonorProfilePage />}
+          />
+
+          <Route
+            path="/donor/availability"
+            element={<DonorAvailabilityPage />}
+          />
+
+          <Route
+            path="/donor/medical-reports"
+            element={<DonorMedicalReportsPage />}
+          />
+
+          <Route
+            path="/donor/history"
+            element={<DonorHistoryPage />}
           />
         </Route>
 
