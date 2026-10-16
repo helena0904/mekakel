@@ -120,11 +120,6 @@ export async function authenticateToken(
         accountType: true,
         isActive: true,
         passwordVersion: true,
-        hospitalProfile: {
-          select: {
-            isVerified: true,
-          },
-        },
       },
     })
 
@@ -156,6 +151,10 @@ export async function authenticateToken(
         message: 'Your account is inactive',
       })
     }
+
+    // Unapproved hospitals may still sign in to view their dashboard, which
+    // shows an "approval required" state. Management actions are gated by
+    // role checks in the hospital/inventory controllers.
 
     const revoked = await prisma.revokedToken.findUnique({
       where: { jti: decoded.jti },

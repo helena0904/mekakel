@@ -171,7 +171,7 @@ describe('GET /api/users/me (authenticateToken)', () => {
     expect(res.status).toBe(403)
   })
 
-  it('rejects a hospital token while the hospital is unverified', async () => {
+  it('accepts a hospital token while the hospital is unverified', async () => {
     const { user } = await createUser({
       accountType: 'HOSPITAL',
       hospitalVerified: false,
@@ -184,7 +184,7 @@ describe('GET /api/users/me (authenticateToken)', () => {
     })
 
     const res = await getMe(token)
-    expect(res.status).toBe(403)
+    expect(res.status).toBe(200)
   })
 
   it('accepts a verified hospital token', async () => {

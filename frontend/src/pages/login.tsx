@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import {
+  Link,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { login } from '../services/auth.service'
 import { dashboardPathFor } from '../utils/dashboard'
@@ -15,6 +20,14 @@ function Login() {
 
   const { loginUser, user, token } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+
+  const registrationSuccess =
+    (
+      location.state as {
+        registrationSuccess?: boolean
+      } | null
+    )?.registrationSuccess === true
 
   // An already signed-in user should never see the login page; send them
   // straight to the dashboard that matches their account type.
@@ -79,6 +92,13 @@ function Login() {
   return (
     <main className="login-page">
       <div className="login-container">
+        {registrationSuccess && (
+          <p className="register-success" role="status">
+            Your account was created successfully. Please sign in to
+            continue.
+          </p>
+        )}
+
         {!loginType ? (
           <>
             <h1>Login</h1>

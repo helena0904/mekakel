@@ -1,9 +1,58 @@
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+
 import { useAuth } from '../../hooks/useAuth'
+import {
+  getHospitalDashboard,
+  HOSPITAL_STATUS_LABELS,
+  hospitalStatusBadgeClass,
+} from '../../services/hospital.service'
+import type {
+  HospitalProfile,
+  HospitalStaffRoleValue,
+} from '../../services/hospital.service'
 
 function HospitalDashboard() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+
+  const [profile, setProfile] =
+    useState<HospitalProfile | null>(null)
+  const [role, setRole] =
+    useState<HospitalStaffRoleValue | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let cancelled = false
+
+    void (async () => {
+      try {
+        const loaded = await getHospitalDashboard()
+
+        if (!cancelled) {
+          setProfile(loaded.hospital)
+          setRole(loaded.role)
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Unable to load your hospital dashboard'
+          )
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   function handleLogout() {
     logout()
@@ -15,42 +64,85 @@ function HospitalDashboard() {
       <div className="dashboard-container">
         <h1>Hospital / Clinic Dashboard</h1>
 
-        <p>
-          Welcome, {user?.name}!
-        </p>
+        <p>Welcome, {user?.name}!</p>
 
-        <p>
-          Manage your institution's blood coordination activities.
-        </p>
+        {error && (
+          <p className="register-error" role="alert">
+            {error}
+          </p>
+        )}
 
-        <section className="dashboard-card">
-          <h2>Institution Account</h2>
+        {loading && <p role="status">Loading your dashboard…</p>}
 
-          <p>Email: {user?.email}</p>
+        {profile && (
+          <>
+            <section className="dashboard-card">
+              <h2>Institution account</h2>
 
-          <p>Account Type: Hospital / Clinic</p>
+              <p>Email: {user?.email}</p>
 
-          <p>Role: {user?.role}</p>
-        </section>
+              <p>
+                Institution: {profile.hospitalName}
+              </p>
 
-        <section className="dashboard-card">
-          <h2>Hospital Activities</h2>
+              <p>Your role: {role}</p>
 
-          <p>Manage blood inventory.</p>
+              <p>
+                Registration status:{' '}
+                <span
+                  className={hospitalStatusBadgeClass(
+                    profile.status
+                  )}
+                >
+                  {HOSPITAL_STATUS_LABELS[profile.status]}
+                </span>
+              </p>
+            </section>
 
-          <p>Create blood requests.</p>
+            {profile.status !== 'APPROVED' && (
+              <section className="verification-status">
+                <div className="verification-status-header">
+                  <h2>Approval required</h2>
+                </div>
 
-          <p>Track your blood requests.</p>
+                <p>
+                  Inventory and staff management unlock once
+                  an administrator approves your institution.
+                </p>
 
-          <p>Coordinate with other hospitals and clinics.</p>
+                {profile.reviewNotes && (
+                  <p className="verification-notes">
+                    Reviewer note: {profile.reviewNotes}
+                  </p>
+                )}
+              </section>
+            )}
 
-          <p>Find eligible, verified donors when needed.</p>
-        </section>
+            <section className="dashboard-card">
+              <h2>Hospital activities</h2>
 
-        <button
-          type="button"
-          onClick={handleLogout}
-        >
+              <ul className="donor-links">
+                <li>
+                  <Link to="/hospital/profile">
+                    Hospital profile and contact details
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/hospital/staff">
+                    Manage staff accounts
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/hospital/inventory">
+                    Blood inventory and expiry alerts
+                  </Link>
+                </li>
+              </ul>
+            </section>
+          </>
+        )}
+
+        <button type="button" onClick={handleLogout}>
           Logout
         </button>
       </div>

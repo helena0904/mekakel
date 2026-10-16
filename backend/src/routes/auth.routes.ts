@@ -479,13 +479,15 @@ router.post(
                         address: data.address!,
                         additionalPhone:
                           data.additionalPhone || null,
-                        isVerified: true,
+                        isVerified: false,
+                        status: 'PENDING',
                       },
                     },
                   }),
             },
             include: {
               donorProfile: true,
+              hospitalProfile: true,
             },
           })
 
@@ -500,6 +502,16 @@ router.post(
                 reportType: data.reportType!,
                 fileUrl: file!.filename,
                 verificationStatus: 'PENDING',
+              },
+            })
+          } else {
+            await tx.hospitalStaffMember.create({
+              data: {
+                hospitalProfileId:
+                  created.hospitalProfile!.id,
+                userId: created.id,
+                staffRole: 'OWNER',
+                isActive: true,
               },
             })
           }

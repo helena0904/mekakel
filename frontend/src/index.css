@@ -1267,3 +1267,116 @@ body {
     outline: none;
     border-color: #0056b3;
 }
+
+
+/* HOSPITAL TABLES */
+
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 10px;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+}
+
+.data-table th,
+.data-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    font-size: 15px;
+    vertical-align: middle;
+}
+
+.data-table th {
+    background-color: #f1f5fb;
+    color: #0056b3;
+    font-weight: bold;
+}
+
+.data-table tfoot td {
+    font-weight: bold;
+    background-color: #f8f9fa;
+}
+
+.data-table select {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.cell-note {
+    display: block;
+    color: #777;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+.table-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.table-actions .secondary-button {
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+.danger-button {
+    border-color: #d32f2f;
+    color: #d32f2f;
+}
+
+.danger-button:hover {
+    background-color: #d32f2f;
+    color: white;
+}
+
+
+/* HOSPITAL FORM LAYOUT */
+
+.form-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.form-row .form-group {
+    flex: 1 1 220px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-bar {
+    display: flex;
+    gap: 16px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filter-bar .form-group {
+    flex: 1 1 180px;
+}
+
+.filter-bar .register-button {
+    flex: 0 0 auto;
+}
