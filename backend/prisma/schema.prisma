@@ -54,19 +54,20 @@ enum VerificationStatus {
   PENDING
   VERIFIED
   REJECTED
+  ADDITIONAL_INFO_REQUIRED
 }
 
 model User {
-  id                 Int                 @id @default(autoincrement())
-  email              String              @unique
-  passwordHash       String
-  passwordVersion    Int                 @default(0)
-  name               String
-  accountType        AccountType
-  role               UserRole            @default(USER)
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id              Int         @id @default(autoincrement())
+  email           String      @unique
+  passwordHash    String
+  passwordVersion Int         @default(0)
+  name            String
+  accountType     AccountType
+  role            UserRole    @default(USER)
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   donorProfile       DonorProfile?
   hospitalProfile    HospitalProfile?
@@ -102,25 +103,31 @@ model RateLimitCounter {
 }
 
 model DonorProfile {
-  id                  Int                         @id @default(autoincrement())
-  userId              Int                         @unique
-  faydaId             String?
-  dateOfBirth         DateTime?
-  phone               String
-  additionalPhone     String?
-  address             String
-  age                 Int
-  weight              Float
-  height              Float
-  bloodType           BloodType?
-  currentAvailability DonorAvailability           @default(UNAVAILABLE)
-  lastDonation        DateTime?
-  verificationStatus  VerificationStatus          @default(PENDING)
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
+  id                   Int                @id @default(autoincrement())
+  userId               Int                @unique
+  faydaId              String?
+  dateOfBirth          DateTime?
+  phone                String
+  additionalPhone      String?
+  address              String
+  age                  Int
+  weight               Float
+  height               Float
+  bloodType            BloodType?
+  currentAvailability  DonorAvailability  @default(UNAVAILABLE)
+  lastDonation         DateTime?
+  donationIntervalDays Int                @default(90)
+  verificationStatus   VerificationStatus @default(PENDING)
+  verificationNotes    String?
+  verifiedAt           DateTime?
+  consentToContact     Boolean            @default(false)
+  shareLocation        Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
 
-  availabilities DonorAvailabilitySchedule[]
-  medicalReports MedicalReport[]
+  availabilities  DonorAvailabilitySchedule[]
+  medicalReports  MedicalReport[]
+  donationHistory DonationRecord[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -166,4 +173,18 @@ model MedicalReport {
 
   donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
   uploadedBy   User         @relation(fields: [uploadedByUserId], references: [id], onDelete: Cascade)
+}
+
+model DonationRecord {
+  id             Int      @id @default(autoincrement())
+  donorProfileId Int
+  donatedAt      DateTime
+  facilityName   String?
+  units          Float?
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+
+  @@index([donorProfileId])
 }

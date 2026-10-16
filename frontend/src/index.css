@@ -1010,3 +1010,260 @@ body {
 .reset-password-link:hover {
   text-decoration: none;
 }
+
+
+/* DASHBOARD */
+
+.dashboard-page {
+    padding: 3rem 2rem;
+    background-color: #f8f9fa;
+    min-height: 80vh;
+}
+
+.dashboard-container {
+    width: 90%;
+    max-width: 900px;
+    margin: auto;
+}
+
+.dashboard-container h1 {
+    margin-bottom: 1rem;
+}
+
+.dashboard-card {
+    padding: 25px;
+    margin-bottom: 20px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+}
+
+.dashboard-card h2 {
+    margin-bottom: 15px;
+    color: #0056b3;
+}
+
+.dashboard-card p {
+    margin-bottom: 8px;
+}
+
+
+/* BACK LINK */
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 15px;
+    color: #0056b3;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+
+/* STATUS BADGE */
+
+.status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: bold;
+    margin-left: 8px;
+}
+
+.status-badge-pending {
+    background-color: #fff3cd;
+    color: #8a6d3b;
+}
+
+.status-badge-approved {
+    background-color: #e8f5e9;
+    color: #198754;
+}
+
+.status-badge-rejected {
+    background-color: #ffebee;
+    color: #d32f2f;
+}
+
+.status-badge-info {
+    background-color: #e3f2fd;
+    color: #0056b3;
+}
+
+
+/* VERIFICATION STATUS */
+
+.verification-status {
+    padding: 25px;
+    margin-bottom: 20px;
+    background-color: white;
+    border: 1px solid #b8d8f5;
+    border-radius: 10px;
+}
+
+.verification-status-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.verification-status-header h2 {
+    color: #0056b3;
+}
+
+.verification-notes {
+    color: #8a6d3b;
+    background-color: #fff8e1;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+
+/* CONSENT CHECKBOX */
+
+.consent-checkbox {
+    justify-content: flex-start;
+    align-items: flex-start;
+    text-align: left;
+}
+
+.consent-checkbox span {
+    font-weight: normal;
+    color: #555;
+    line-height: 1.5;
+}
+
+
+/* ELIGIBILITY */
+
+.eligibility-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 10px;
+}
+
+.eligibility-list li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+    color: #555;
+}
+
+.eligibility-list li:last-child {
+    border-bottom: none;
+}
+
+.check-pass {
+    color: #198754;
+    font-weight: bold;
+}
+
+.check-fail {
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+.check-info {
+    color: #0056b3;
+    font-weight: bold;
+}
+
+
+/* DONOR LINKS */
+
+.donor-links {
+    list-style: none;
+    padding: 0;
+}
+
+.donor-links li {
+    margin-bottom: 10px;
+}
+
+.donor-links a {
+    color: #0056b3;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.donor-links a:hover {
+    text-decoration: underline;
+}
+
+
+/* REPORTS */
+
+.report-list,
+.history-list {
+    list-style: none;
+    padding: 0;
+}
+
+.report-item,
+.history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 15px;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f8f9fa;
+}
+
+.history-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+}
+
+.report-item p,
+.history-item p {
+    margin: 4px 0 0;
+    color: #777;
+}
+
+.secondary-button {
+    padding: 8px 18px;
+    border: 1px solid #0056b3;
+    border-radius: 6px;
+    background-color: white;
+    color: #0056b3;
+    cursor: pointer;
+    font-size: 15px;
+    white-space: nowrap;
+}
+
+.secondary-button:hover {
+    background-color: #0056b3;
+    color: white;
+}
+
+
+/* TEXTAREA */
+
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 16px;
+    font-family: Arial, sans-serif;
+    resize: vertical;
+}
+
+.form-group textarea:focus {
+    outline: none;
+    border-color: #0056b3;
+}

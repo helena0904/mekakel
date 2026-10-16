@@ -4,6 +4,7 @@ import express, { type Express } from 'express'
 import authRoutes from './routes/auth.routes'
 import userRoutes from './routes/user.routes'
 import faydaRoutes from './routes/fayda.routes'
+import donorRoutes from './routes/donor.routes'
 
 function parseTrustProxy(): boolean | number {
   const raw = process.env.TRUST_PROXY?.trim()
@@ -54,6 +55,7 @@ export function createApp(): Express {
   app.use('/api/auth', authRoutes)
   app.use('/api/users', userRoutes)
   app.use('/api/fayda', faydaRoutes)
+  app.use('/api/donor', donorRoutes)
 
   app.get('/', (_req, res) => {
     res.json({
