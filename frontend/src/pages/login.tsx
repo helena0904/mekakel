@@ -1,111 +1,178 @@
 import { useState, type FormEvent } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { login } from '../services/auth.service'
+import { dashboardPathFor } from '../utils/dashboard'
+
+type LoginType = 'individual' | 'hospital' | null
 
 function Login() {
-  const [loginType, setLoginType] = useState('')
+  const [loginType, setLoginType] = useState<LoginType>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [forgotPassword, setForgotPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const { loginUser } = useAuth()
+  const { loginUser, user, token } = useAuth()
+  const navigate = useNavigate()
 
-  async function handleLogin(e: FormEvent) {
-    e.preventDefault()
+  // An already signed-in user should never see the login page; send them
+  // straight to the dashboard that matches their account type.
+  if (user && token) {
+    return (
+      <Navigate
+        to={dashboardPathFor(user.accountType)}
+        replace
+      />
+    )
+  }
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!loginType || loading) {
+      return
+    }
 
     setError('')
     setLoading(true)
 
     try {
       const accountType =
-        loginType === 'individual' ? 'INDIVIDUAL' : 'HOSPITAL'
+        loginType === 'individual'
+          ? 'INDIVIDUAL'
+          : 'HOSPITAL'
 
       const response = await login({
-        email,
+        email: email.trim().toLowerCase(),
         password,
         accountType,
       })
 
       loginUser(response.token, response.user)
 
-      window.location.href = '/'
-    } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message)
-      } else {
-        setError('Login failed')
-      }
+      navigate(dashboardPathFor(response.user.accountType), {
+        replace: true,
+      })
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Unable to log in. Please try again.'
+      )
     } finally {
       setLoading(false)
     }
   }
 
-  return (
-    <div className="login-page">
-      <div className="login-container">
+  function handleBack() {
+    if (loading) {
+      return
+    }
 
-        {!loginType && (
+    setLoginType(null)
+    setEmail('')
+    setPassword('')
+    setError('')
+  }
+
+  return (
+    <main className="login-page">
+      <div className="login-container">
+        {!loginType ? (
           <>
             <h1>Login</h1>
 
             <p className="login-introduction">
-              How do you want to login?
+              How do you want to log in?
             </p>
 
             <div className="login-choice">
-
               <button
+                type="button"
                 className="login-choice-button"
-                onClick={() => setLoginType('individual')}
+                onClick={() => {
+                  setLoginType('individual')
+                  setError('')
+                }}
               >
                 Individual Donor
               </button>
 
               <button
+                type="button"
                 className="login-choice-button"
-                onClick={() => setLoginType('hospital')}
+                onClick={() => {
+                  setLoginType('hospital')
+                  setError('')
+                }}
               >
                 Hospital / Clinic
               </button>
-
             </div>
+
+            <p className="login-link">
+              Don't have an account?{' '}
+              <Link to="/register">
+                Register here
+              </Link>
+            </p>
           </>
-        )}
-
-        {loginType === 'individual' && !forgotPassword && (
-          <div>
-            <h2>Individual Donor Login</h2>
+        ) : (
+          <>
+            <h2>
+              {loginType === 'individual'
+                ? 'Individual Donor Login'
+                : 'Hospital / Clinic Login'}
+            </h2>
 
             <form onSubmit={handleLogin}>
-
               <div className="login-form-group">
-                <label>Email</label>
+                <label htmlFor="login-email">
+                  Email Address
+                </label>
 
                 <input
+                  id="login-email"
                   type="email"
+                  name="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(event) => {
+                    setEmail(event.target.value)
+                    setError('')
+                  }}
                   placeholder="Enter your email"
+                  autoComplete="email"
                   required
+                  disabled={loading}
                 />
               </div>
 
               <div className="login-form-group">
-                <label>Password</label>
-
-                <input
+                <label htmlFor="login-password">
+                  Password
+                </label>
+              <input
+                  id="login-password"
                   type="password"
+                  name="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  onChange={(event) => {
+                    setPassword(event.target.value)
+                    setError('')
+                  }}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
                   required
+                  disabled={loading}
                 />
               </div>
 
               {error && (
-                <p className="login-error">
+                <p
+                  className="login-error"
+                  role="alert"
+                >
                   {error}
                 </p>
               )}
@@ -117,145 +184,33 @@ function Login() {
               >
                 {loading ? 'Logging in...' : 'Login'}
               </button>
-
             </form>
 
-            <button
-              className="forgot-password"
-              onClick={() => {
-                setForgotPassword(true)
-                setError('')
-              }}
-            >
-              Forgot password?
-            </button>
-
-            <button
-              className="back-button"
-              onClick={() => {
-                setLoginType('')
-                setError('')
-              }}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {loginType === 'hospital' && !forgotPassword && (
-          <div>
-            <h2>Hospital / Clinic Login</h2>
-
-            <form onSubmit={handleLogin}>
-
-              <div className="login-form-group">
-                <label>Email</label>
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <div className="login-form-group">
-                <label>Password</label>
-
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
-                  required
-                />
-              </div>
-
-              {error && (
-                <p className="login-error">
-                  {error}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="login-button"
-                disabled={loading}
-              >
-                {loading ? 'Logging in...' : 'Login'}
-              </button>
-
-            </form>
-
-            <button
-              className="forgot-password"
-              onClick={() => {
-                setForgotPassword(true)
-                setError('')
-              }}
-            >
-              Forgot password?
-            </button>
-
-            <button
-              className="back-button"
-              onClick={() => {
-                setLoginType('')
-                setError('')
-              }}
-            >
-              Back
-            </button>
-          </div>
-        )}
-
-        {forgotPassword && (
-          <div>
-            <h2>Recover Password</h2>
-
-            <p className="login-introduction">
-              Enter your email address and we will send you a verification
-              code to recover your account.
+            <p className="login-link">
+              <Link to="/forgot-password">
+                Forgot Password?
+              </Link>
             </p>
 
-            <form>
-
-              <div className="login-form-group">
-                <label>Email</label>
-
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="login-button"
-              >
-                Send Verification Code
-              </button>
-
-            </form>
-
             <button
+              type="button"
               className="back-button"
-              onClick={() => {
-                setForgotPassword(false)
-                setError('')
-              }}
+              onClick={handleBack}
+              disabled={loading}
             >
-              Back to Login
+              Back
             </button>
-          </div>
-        )}
 
+            <p className="login-link">
+              Don't have an account?{' '}
+              <Link to="/register">
+                Register here
+              </Link>
+            </p>
+          </>
+        )}
       </div>
-    </div>
+    </main>
   )
 }
 

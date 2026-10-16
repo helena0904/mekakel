@@ -1,54 +1,109 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
+import { dashboardPathFor } from '../utils/dashboard'
 import logo from '../assets/logo-placeholder.jpg'
 
 function Navbar() {
-    const navigate = useNavigate()
+  const { user, token, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
 
-    const goToSection = (section: string) => {
-        navigate('/')
+  const isAuthenticated = Boolean(user && token)
 
-        setTimeout(() => {
-            const element = document.getElementById(section)
+  const dashboardPath = user
+    ? dashboardPathFor(user.accountType)
+    : '/login'
 
-            if (element) {
-                element.scrollIntoView({
-                    behavior: 'smooth'
-                })
-            }
-        }, 100)
+  useEffect(() => {
+    if (location.pathname !== '/' || !location.hash) {
+      return
     }
 
-    return (
-        <nav className="navigationbar">
+    const frame = window.requestAnimationFrame(() => {
+      const sectionId = location.hash.slice(1)
+      const element = document.getElementById(sectionId)
 
-            <div className="logo-container">
+      element?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
 
-                <img src={logo} alt="MEKAKEL logo" className="logo" />
+    return () => {
+      window.cancelAnimationFrame(frame)
+    }
+  }, [location.pathname, location.hash, location.key])
 
-                <span>MEKAKEL</span>
+  const handleLogout = () => {
+    logout()
+    navigate('/', { replace: true })
+  }
 
-            </div>
+  return (
+    <nav
+      className="navigationbar"
+      aria-label="Main navigation"
+    >
+      <Link
+        to="/"
+        className="logo-container"
+        style={{
+          color: 'inherit',
+          textDecoration: 'none',
+        }}
+      >
+        <img
+          src={logo}
+          alt="Mekakel logo"
+          className="logo"
+        />
 
-            <div className="navigationlinks">
+        <span>MEKAKEL</span>
+      </Link>
 
-                <Link to="/">Home</Link>
+      <div className="navigationlinks">
+        <Link to="/">Home</Link>
 
-                <button onClick={() => goToSection('about')}>
-                    About
-                </button>
+        <Link to="/#about">
+          About
+        </Link>
 
-                <button onClick={() => goToSection('how-it-works')}>
-                    How It Works
-                </button>
+        <Link to="/#how-it-works">
+          How It Works
+        </Link>
 
-                <Link to="/login">Login</Link>
+        {isAuthenticated ? (
+          <>
+            <Link to={dashboardPath}>
+              Dashboard
+            </Link>
 
-                <Link to="/register">Register</Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+            >
+              Logout
+            </button>
+          </>
+        ) : (
+          <>
+            <Link to="/login">
+              Login
+            </Link>
 
-            </div>
-
-        </nav>
-    )
+            <Link to="/register">
+              Register
+            </Link>
+          </>
+        )}
+      </div>
+    </nav>
+  )
 }
 
 export default Navbar

@@ -19,14 +19,151 @@ enum AccountType {
   HOSPITAL
 }
 
+enum BloodType {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum DonorAvailability {
+  AVAILABLE
+  UNAVAILABLE
+}
+
+enum ReportType {
+  IMAGE
+  PDF
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
 model User {
-  id           Int         @id @default(autoincrement())
-  email        String      @unique
-  passwordHash String
-  name         String
-  accountType  AccountType
-  role         UserRole    @default(USER)
-  isActive     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id                 Int                 @id @default(autoincrement())
+  email              String              @unique
+  passwordHash       String
+  passwordVersion    Int                 @default(0)
+  name               String
+  accountType        AccountType
+  role               UserRole            @default(USER)
+  isActive           Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  donorProfile       DonorProfile?
+  hospitalProfile    HospitalProfile?
+  medicalReports     MedicalReport[]
+  passwordResetToken PasswordResetToken?
+}
+
+model PasswordResetToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @unique
+  tokenHash String   @unique @db.VarChar(64)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model RevokedToken {
+  id        Int      @id @default(autoincrement())
+  jti       String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model RateLimitCounter {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
+model DonorProfile {
+  id                  Int                         @id @default(autoincrement())
+  userId              Int                         @unique
+  faydaId             String?
+  dateOfBirth         DateTime?
+  phone               String
+  additionalPhone     String?
+  address             String
+  age                 Int
+  weight              Float
+  height              Float
+  bloodType           BloodType?
+  currentAvailability DonorAvailability           @default(UNAVAILABLE)
+  lastDonation        DateTime?
+  verificationStatus  VerificationStatus          @default(PENDING)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  availabilities DonorAvailabilitySchedule[]
+  medicalReports MedicalReport[]
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DonorAvailabilitySchedule {
+  id             Int       @id @default(autoincrement())
+  donorProfileId Int
+  day            DayOfWeek
+  time           String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([donorProfileId, day])
+}
+
+model HospitalProfile {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  hospitalName    String
+  address         String
+  phone           String
+  additionalPhone String?
+  isVerified      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MedicalReport {
+  id                 Int                @id @default(autoincrement())
+  donorProfileId     Int
+  uploadedByUserId   Int
+  reportType         ReportType
+  fileUrl            String
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  rejectionReason    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation(fields: [uploadedByUserId], references: [id], onDelete: Cascade)
 }
