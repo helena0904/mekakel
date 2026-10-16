@@ -75,7 +75,7 @@ describe('POST /api/auth/login', () => {
     expect(res.body.user.role).toBe('HOSPITAL_STAFF')
   })
 
-  it('blocks an unverified hospital with 403', async () => {
+  it('logs in an unverified hospital and returns a token', async () => {
     const { user } = await createUser({
       email: uniqueEmail('hospital'),
       accountType: 'HOSPITAL',
@@ -88,8 +88,8 @@ describe('POST /api/auth/login', () => {
       accountType: 'HOSPITAL',
     })
 
-    expect(res.status).toBe(403)
-    expect(res.body.message).toMatch(/pending administrator verification/i)
+    expect(res.status).toBe(200)
+    expect(res.body.user.role).toBe('HOSPITAL_STAFF')
   })
 
   it('rejects an incorrect password with 401', async () => {

@@ -80,6 +80,7 @@ interface CreateUserOptions {
   accountType?: 'INDIVIDUAL' | 'HOSPITAL'
   createHospital?: boolean
   hospitalVerified?: boolean
+  hospitalStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED'
   passwordVersion?: number
 }
 
@@ -90,6 +91,13 @@ export async function createUser(options: CreateUserOptions = {}) {
   const role =
     options.role ??
     (accountType === 'HOSPITAL' ? 'HOSPITAL_STAFF' : 'DONOR')
+  const hospitalVerified = options.hospitalVerified ?? false
+  const hospitalStatus =
+    options.hospitalStatus ??
+    (hospitalVerified ? 'APPROVED' : 'PENDING')
+  const shouldCreateHospital =
+    accountType === 'HOSPITAL' &&
+    options.createHospital !== false
 
   const user = await prisma.user.create({
     data: {
@@ -100,14 +108,15 @@ export async function createUser(options: CreateUserOptions = {}) {
       role,
       isActive: options.isActive ?? true,
       passwordVersion: options.passwordVersion ?? 0,
-      ...(options.createHospital || accountType === 'HOSPITAL'
+      ...(shouldCreateHospital
         ? {
             hospitalProfile: {
               create: {
                 hospitalName: 'Test Hospital',
                 address: 'Test Address',
                 phone: '+251900000000',
-                isVerified: options.hospitalVerified ?? false,
+                isVerified: hospitalVerified,
+                status: hospitalStatus,
               },
             },
           }
@@ -120,6 +129,39 @@ export async function createUser(options: CreateUserOptions = {}) {
   })
 
   return { user, password }
+}
+
+export async function createStaffMember(
+  hospitalProfileId: number,
+  options: {
+    staffRole?:
+      | 'OWNER'
+      | 'ADMIN'
+      | 'MANAGER'
+      | 'TECHNICIAN'
+      | 'VIEWER'
+    isActive?: boolean
+    accountActive?: boolean
+    email?: string
+  } = {}
+) {
+  const created = await createUser({
+    accountType: 'HOSPITAL',
+    email: options.email,
+    isActive: options.accountActive ?? true,
+    createHospital: false,
+  })
+
+  const member = await prisma.hospitalStaffMember.create({
+    data: {
+      hospitalProfileId,
+      userId: created.user.id,
+      staffRole: options.staffRole ?? 'VIEWER',
+      isActive: options.isActive ?? true,
+    },
+  })
+
+  return { user: created.user, password: created.password, member }
 }
 
 export async function createDonorProfile(

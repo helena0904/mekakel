@@ -874,13 +874,14 @@ function Register() {
               <h2>Hospital / Clinic Verification</h2>
 
               <p>
-                Your hospital or clinic account is activated as soon as you
-                submit this form.
+                Your hospital or clinic registration will be reviewed by
+                a MEKAKEL administrator.
               </p>
 
               <p>
-                You will be signed in automatically and taken to your
-                hospital dashboard.
+                You will be signed in and taken to your hospital
+                dashboard. Inventory and staff management unlock once
+                your facility is approved.
               </p>
             </section>
 

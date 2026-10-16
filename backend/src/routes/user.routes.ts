@@ -52,6 +52,17 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
             address: true,
             phone: true,
             isVerified: true,
+            status: true,
+            reviewNotes: true,
+          },
+        },
+
+        hospitalStaffMember: {
+          select: {
+            id: true,
+            staffRole: true,
+            isActive: true,
+            hospitalProfileId: true,
           },
         },
       },

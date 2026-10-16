@@ -249,7 +249,7 @@ describe('POST /api/auth/register - hospital', () => {
     }
   }
 
-  it('registers a valid hospital as inactive and unverified', async () => {
+  it('registers a valid hospital as active and unverified', async () => {
     const fields = hospitalFields()
 
     const res = await postHospital(fields)
@@ -259,7 +259,7 @@ describe('POST /api/auth/register - hospital', () => {
       email: fields.email,
       role: 'HOSPITAL_STAFF',
       accountType: 'HOSPITAL',
-      isActive: false,
+      isActive: true,
     })
 
     const user = await prisma.user.findUnique({

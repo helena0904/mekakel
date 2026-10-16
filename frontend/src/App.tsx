@@ -22,6 +22,10 @@ import DonorAvailabilityPage from './pages/donor/donor-availability'
 import DonorMedicalReportsPage from './pages/donor/donor-medical-reports'
 import DonorHistoryPage from './pages/donor/donor-history'
 
+import HospitalProfilePage from './pages/hospital/hospital-profile'
+import HospitalStaffPage from './pages/hospital/hospital-staff'
+import BloodInventoryPage from './pages/hospital/blood-inventory'
+
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
@@ -94,6 +98,21 @@ function App() {
           <Route
             path="/hospital-dashboard"
             element={<HospitalDashboard />}
+          />
+
+          <Route
+            path="/hospital/profile"
+            element={<HospitalProfilePage />}
+          />
+
+          <Route
+            path="/hospital/staff"
+            element={<HospitalStaffPage />}
+          />
+
+          <Route
+            path="/hospital/inventory"
+            element={<BloodInventoryPage />}
           />
         </Route>
 
