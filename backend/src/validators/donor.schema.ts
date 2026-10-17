@@ -123,6 +123,36 @@ export const uploadReportSchema = z.object({
   reportType: z.enum(['IMAGE', 'PDF']),
 })
 
+export const DONOR_REVIEW_DECISIONS = [
+  'VERIFY',
+  'REJECT',
+  'REQUEST_INFO',
+] as const
+
+export const reviewDonorVerificationSchema = z
+  .object({
+    decision: z.enum(DONOR_REVIEW_DECISIONS),
+
+    notes: z.string().trim().max(500).optional(),
+  })
+  .refine(
+    (value) =>
+      value.decision === 'VERIFY' ||
+      Boolean(value.notes && value.notes.length > 0),
+    {
+      message:
+        'A reason is required to reject or request more information',
+      path: ['notes'],
+    }
+  )
+
+export type DonorReviewDecision =
+  (typeof DONOR_REVIEW_DECISIONS)[number]
+
+export type ReviewDonorVerificationInput = z.infer<
+  typeof reviewDonorVerificationSchema
+>
+
 export type UpdateProfileInput = z.infer<
   typeof updateProfileSchema
 >

@@ -16,6 +16,8 @@ import type {
   DonorResponseInput,
   ListReservationsQuery,
 } from '../validators/reservation.schema'
+import { notifyHospitalOwner } from './notification.service'
+import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const reservationInclude = {
   bloodUnit: true,
@@ -51,6 +53,36 @@ export function serializeReservation(
     ...reservation,
     isExpired: reservation.expiresAt.getTime() < now.getTime(),
     bloodUnit: serializeUnit(reservation.bloodUnit, now),
+  }
+}
+
+async function notifyReservationOwner(
+  reservation: SerializedReservation,
+  type: NotificationTypeValue,
+  reason?: string | null
+): Promise<void> {
+  try {
+    await notifyHospitalOwner(
+      reservation.hospitalProfileId,
+      type,
+      {
+        reservationId: reservation.id,
+        unitBagId: reservation.bloodUnit.bagId,
+        bloodType: reservation.bloodUnit.bloodType,
+        component: reservation.bloodUnit.component,
+        reason: reason ?? undefined,
+      },
+      {
+        relatedEntityType: 'Reservation',
+        relatedEntityId: reservation.id,
+        dedupeKey: `reservation:${reservation.id}:${type}`,
+      }
+    )
+  } catch (error) {
+    console.error(
+      '[reservation] notification failed',
+      error
+    )
   }
 }
 
@@ -311,7 +343,28 @@ async function transitionToTerminal(
     }
   )
 
-  return serializeReservation(reservation)
+  const serialized = serializeReservation(reservation)
+
+  await notifyReservationOwner(
+    serialized,
+    notificationTypeForTerminal(target),
+    reason
+  )
+
+  return serialized
+}
+
+function notificationTypeForTerminal(
+  target: 'CANCELLED' | 'RELEASED' | 'EXPIRED'
+): NotificationTypeValue {
+  switch (target) {
+    case 'CANCELLED':
+      return 'RESERVATION_CANCELLED'
+    case 'RELEASED':
+      return 'RESERVATION_RELEASED'
+    default:
+      return 'RESERVATION_EXPIRED'
+  }
 }
 
 export function cancelReservation(
@@ -395,7 +448,16 @@ export function confirmReservation(
         include: reservationInclude,
       })
     })
-    .then((reservation) => serializeReservation(reservation))
+    .then(async (reservation) => {
+      const serialized = serializeReservation(reservation)
+
+      await notifyReservationOwner(
+        serialized,
+        'RESERVATION_CONFIRMED'
+      )
+
+      return serialized
+    })
 }
 
 export function consumeReservation(
@@ -457,7 +519,16 @@ export function consumeReservation(
         include: reservationInclude,
       })
     })
-    .then((reservation) => serializeReservation(reservation))
+    .then(async (reservation) => {
+      const serialized = serializeReservation(reservation)
+
+      await notifyReservationOwner(
+        serialized,
+        'RESERVATION_CONSUMED'
+      )
+
+      return serialized
+    })
 }
 
 export function recordDonorResponse(

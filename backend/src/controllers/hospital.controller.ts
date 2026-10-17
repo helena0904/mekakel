@@ -24,6 +24,18 @@ import {
   updateHospitalProfileSchema,
   updateStaffSchema,
 } from '../validators/hospital.schema'
+import { notifyUser } from '../services/notification.service'
+import type { NotificationTypeValue } from '../validators/notification.schema'
+
+const HOSPITAL_REVIEW_NOTIFICATION: Record<
+  'APPROVE' | 'REJECT' | 'SUSPEND' | 'ACTIVATE',
+  NotificationTypeValue
+> = {
+  APPROVE: 'HOSPITAL_APPROVED',
+  REJECT: 'HOSPITAL_REJECTED',
+  SUSPEND: 'HOSPITAL_SUSPENDED',
+  ACTIVATE: 'HOSPITAL_ACTIVATED',
+}
 
 const CAN_MANAGE: HospitalStaffRoleValue[] = [
   'OWNER',
@@ -481,6 +493,27 @@ export async function reviewHospitalRegistration(
       return res.status(404).json({
         message: 'Hospital not found',
       })
+    }
+
+    try {
+      await notifyUser(
+        hospital.userId,
+        HOSPITAL_REVIEW_NOTIFICATION[parsed.data.decision],
+        {
+          hospitalName: hospital.hospitalName,
+          reason: parsed.data.notes ?? undefined,
+        },
+        {
+          relatedEntityType: 'HospitalProfile',
+          relatedEntityId: hospital.id,
+          dedupeKey: `hospital:${hospital.id}:review:${parsed.data.decision}:${hospital.reviewedAt?.getTime() ?? ''}`,
+        }
+      )
+    } catch (notificationError) {
+      console.error(
+        '[hospital] review notification failed',
+        notificationError
+      )
     }
 
     return res.status(200).json({

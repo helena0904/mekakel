@@ -14,6 +14,8 @@ import type {
   ListTransfersQuery,
   TransferStatusValue,
 } from '../validators/transfer.schema'
+import { notifyHospitalOwner } from './notification.service'
+import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const transferInclude = {
   bloodUnit: true,
@@ -54,6 +56,46 @@ export function serializeTransfer(
   return {
     ...transfer,
     bloodUnit: serializeUnit(transfer.bloodUnit, now),
+  }
+}
+
+async function notifyTransferCounterpart(
+  transfer: SerializedTransfer,
+  actorProfileId: number,
+  type: NotificationTypeValue,
+  note?: string
+): Promise<void> {
+  const actorIsFrom =
+    transfer.fromHospitalProfileId === actorProfileId
+
+  const recipientProfileId = actorIsFrom
+    ? transfer.toHospitalProfileId
+    : transfer.fromHospitalProfileId
+
+  const actorName = actorIsFrom
+    ? transfer.fromHospital.hospitalName
+    : transfer.toHospital.hospitalName
+
+  try {
+    await notifyHospitalOwner(
+      recipientProfileId,
+      type,
+      {
+        transferId: transfer.id,
+        unitBagId: transfer.bloodUnit.bagId,
+        bloodType: transfer.bloodUnit.bloodType,
+        component: transfer.bloodUnit.component,
+        otherHospitalName: actorName,
+        reason: note,
+      },
+      {
+        relatedEntityType: 'Transfer',
+        relatedEntityId: transfer.id,
+        dedupeKey: `transfer:${transfer.id}:${type}`,
+      }
+    )
+  } catch (error) {
+    console.error('[transfer] notification failed', error)
   }
 }
 
@@ -161,6 +203,7 @@ interface ActionOptions {
   allowed: TransferStatusValue[]
   next: TransferStatusValue
   note: string
+  notifyType: NotificationTypeValue
   apply: (
     tx: Prisma.TransactionClient,
     transfer: TransferWithRelations,
@@ -236,7 +279,16 @@ async function runAction(
     })
   })
 
-  return serializeTransfer(transfer)
+  const serialized = serializeTransfer(transfer)
+
+  await notifyTransferCounterpart(
+    serialized,
+    hospitalProfileId,
+    options.notifyType,
+    options.note
+  )
+
+  return serialized
 }
 
 export async function listTransfers(
@@ -438,7 +490,16 @@ export async function createTransfer(
     include: transferInclude,
   })
 
-  return serializeTransfer(created)
+  const serialized = serializeTransfer(created)
+
+  await notifyTransferCounterpart(
+    serialized,
+    fromHospitalProfileId,
+    'TRANSFER_REQUESTED',
+    data.reason ?? undefined
+  )
+
+  return serialized
 }
 
 export function approveTransfer(
@@ -452,6 +513,7 @@ export function approveTransfer(
     allowed: ['REQUESTED'],
     next: 'APPROVED',
     note: note || 'Transfer approved by receiving hospital',
+    notifyType: 'TRANSFER_APPROVED',
     apply: (_tx, _transfer, now, actor) => ({
       status: 'APPROVED',
       approvedAt: now,
@@ -471,6 +533,7 @@ export function rejectTransfer(
     allowed: ['REQUESTED'],
     next: 'REJECTED',
     note: reason || 'Transfer rejected by receiving hospital',
+    notifyType: 'TRANSFER_REJECTED',
     apply: (_tx, _transfer, now, actor) => ({
       status: 'REJECTED',
       rejectionReason: reason || null,
@@ -493,6 +556,7 @@ export function dispatchTransfer(
     allowed: ['APPROVED'],
     next: 'DISPATCHED',
     note: note || 'Unit dispatched by source hospital',
+    notifyType: 'TRANSFER_DISPATCHED',
     apply: (_tx, _transfer, now, actor) => ({
       status: 'DISPATCHED',
       dispatchedAt: now,
@@ -512,6 +576,7 @@ export function receiveTransfer(
     allowed: ['DISPATCHED'],
     next: 'RECEIVED',
     note: note || 'Unit received by destination hospital',
+    notifyType: 'TRANSFER_RECEIVED',
     apply: (_tx, _transfer, now, actor) => ({
       status: 'RECEIVED',
       receivedAt: now,
@@ -531,6 +596,7 @@ export function completeTransfer(
     allowed: ['RECEIVED'],
     next: 'COMPLETED',
     note: note || 'Transfer completed',
+    notifyType: 'TRANSFER_COMPLETED',
     apply: (_tx, _transfer, now, actor) => ({
       status: 'COMPLETED',
       completedAt: now,
@@ -599,6 +665,7 @@ export function cancelTransfer(
     allowed: ['REQUESTED', 'APPROVED'],
     next: 'CANCELLED',
     note: note || 'Transfer cancelled',
+    notifyType: 'TRANSFER_CANCELLED',
     apply: () => ({ status: 'CANCELLED' }),
     after: (tx, transfer, now) =>
       releaseUnitForTransfer(tx, transfer, now),
