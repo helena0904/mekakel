@@ -18,6 +18,11 @@ import type {
   HospitalStaffRoleValue,
 } from '../services/hospital.service'
 import {
+  actorFromRequest,
+  recordAuditSafely,
+  type AuditActionValue,
+} from '../services/audit.service'
+import {
   createBloodUnitSchema,
   listBloodUnitsQuerySchema,
   updateBloodUnitSchema,
@@ -72,6 +77,21 @@ function parseId(value: unknown): number | null {
   }
 
   return id
+}
+
+function auditInventory(
+  req: AuthRequest,
+  action: AuditActionValue,
+  unitId: number | null,
+  summary: string
+) {
+  void recordAuditSafely({
+    ...actorFromRequest(req),
+    action,
+    entityType: 'BloodUnit',
+    entityId: unitId,
+    summary,
+  })
 }
 
 export async function getUnits(
@@ -186,6 +206,13 @@ export async function postUnit(
       parsed.data
     )
 
+    auditInventory(
+      req,
+      'INVENTORY_UNIT_CREATED',
+      unit.id,
+      `Blood unit ${unit.bagId} added`
+    )
+
     return res.status(201).json({
       message: 'Blood unit added',
       unit: serializeUnit(unit),
@@ -271,6 +298,13 @@ export async function putUnit(
 
     const unit = await updateUnit(unitId, parsed.data)
 
+    auditInventory(
+      req,
+      'INVENTORY_UNIT_UPDATED',
+      unit.id,
+      `Blood unit ${unit.bagId} updated`
+    )
+
     return res.status(200).json({
       message: 'Blood unit updated',
       unit: serializeUnit(unit),
@@ -329,6 +363,13 @@ export async function removeUnit(
     }
 
     await deleteUnit(unitId)
+
+    auditInventory(
+      req,
+      'INVENTORY_UNIT_DELETED',
+      unitId,
+      `Blood unit ${existing.bagId} removed`
+    )
 
     return res.status(200).json({
       message: 'Blood unit removed',

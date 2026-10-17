@@ -7,6 +7,8 @@ export async function resetDatabase(): Promise<void> {
     prisma.revokedToken.deleteMany(),
     prisma.rateLimitCounter.deleteMany(),
     prisma.passwordResetToken.deleteMany(),
+    prisma.auditLog.deleteMany(),
+    prisma.systemSetting.deleteMany(),
     prisma.notification.deleteMany(),
     prisma.notificationPreference.deleteMany(),
     prisma.medicalReport.deleteMany(),
