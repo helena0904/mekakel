@@ -137,6 +137,43 @@ enum TransferStatus {
   CANCELLED
 }
 
+enum NotificationCategory {
+  DONOR
+  HOSPITAL
+  RESERVATION
+  TRANSFER
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  SUPPRESSED
+}
+
+enum NotificationType {
+  DONOR_REGISTERED
+  DONOR_VERIFICATION_APPROVED
+  DONOR_VERIFICATION_REJECTED
+  DONOR_ADDITIONAL_INFO_REQUIRED
+  HOSPITAL_APPROVED
+  HOSPITAL_REJECTED
+  HOSPITAL_SUSPENDED
+  HOSPITAL_ACTIVATED
+  RESERVATION_CONFIRMED
+  RESERVATION_CANCELLED
+  RESERVATION_RELEASED
+  RESERVATION_EXPIRED
+  RESERVATION_CONSUMED
+  TRANSFER_REQUESTED
+  TRANSFER_APPROVED
+  TRANSFER_REJECTED
+  TRANSFER_DISPATCHED
+  TRANSFER_RECEIVED
+  TRANSFER_COMPLETED
+  TRANSFER_CANCELLED
+}
+
 model User {
   id              Int         @id @default(autoincrement())
   email           String      @unique
@@ -154,6 +191,9 @@ model User {
   hospitalStaffMember HospitalStaffMember?
   medicalReports      MedicalReport[]
   passwordResetToken  PasswordResetToken?
+
+  notifications          Notification[]
+  notificationPreference NotificationPreference?
 }
 
 model PasswordResetToken {
@@ -430,4 +470,49 @@ model TransferEvent {
   transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
 
   @@index([transferId])
+}
+
+model NotificationPreference {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique
+  emailEnabled       Boolean  @default(true)
+  donorUpdates       Boolean  @default(true)
+  hospitalUpdates    Boolean  @default(true)
+  reservationUpdates Boolean  @default(true)
+  transferUpdates    Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id                Int                  @id @default(autoincrement())
+  userId            Int
+  recipientEmail    String
+  type              NotificationType
+  category          NotificationCategory
+  subject           String
+  body              String               @db.Text
+  html              String?              @db.Text
+  status            NotificationStatus   @default(PENDING)
+  attempts          Int                  @default(0)
+  maxAttempts       Int                  @default(3)
+  lastError         String?              @db.Text
+  dedupeKey         String?              @unique
+  relatedEntityType String?
+  relatedEntityId   Int?
+  metadata          Json?
+  scheduledAt       DateTime             @default(now())
+  lastAttemptAt     DateTime?
+  sentAt            DateTime?
+  readAt            DateTime?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status, scheduledAt])
+  @@index([userId, readAt])
 }
