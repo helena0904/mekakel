@@ -91,6 +91,52 @@ enum BloodUnitStatus {
   DISCARDED
 }
 
+enum BloodComponent {
+  WHOLE_BLOOD
+  RED_CELLS
+  PLASMA
+  PLATELETS
+  CRYOPRECIPITATE
+}
+
+enum RequestUrgency {
+  ROUTINE
+  URGENT
+  EMERGENCY
+}
+
+enum BloodRequestStatus {
+  OPEN
+  FULFILLED
+  CANCELLED
+}
+
+enum ReservationStatus {
+  ACTIVE
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+  RELEASED
+  CONSUMED
+}
+
+enum DonorResponseStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  NO_SHOW
+}
+
+enum TransferStatus {
+  REQUESTED
+  APPROVED
+  DISPATCHED
+  RECEIVED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
 model User {
   id              Int         @id @default(autoincrement())
   email           String      @unique
@@ -103,11 +149,11 @@ model User {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  donorProfile       DonorProfile?
-  hospitalProfile    HospitalProfile?
+  donorProfile        DonorProfile?
+  hospitalProfile     HospitalProfile?
   hospitalStaffMember HospitalStaffMember?
-  medicalReports     MedicalReport[]
-  passwordResetToken PasswordResetToken?
+  medicalReports      MedicalReport[]
+  passwordResetToken  PasswordResetToken?
 }
 
 model PasswordResetToken {
@@ -163,6 +209,7 @@ model DonorProfile {
   availabilities  DonorAvailabilitySchedule[]
   medicalReports  MedicalReport[]
   donationHistory DonationRecord[]
+  reservations    Reservation[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -181,24 +228,28 @@ model DonorAvailabilitySchedule {
 }
 
 model HospitalProfile {
-  id              Int            @id @default(autoincrement())
-  userId          Int            @unique
-  hospitalName    String
-  address         String
-  phone           String
-  additionalPhone String?
-  isVerified      Boolean        @default(false)
-  status          HospitalStatus @default(PENDING)
-  reviewNotes     String?
-  reviewedAt      DateTime?
+  id               Int            @id @default(autoincrement())
+  userId           Int            @unique
+  hospitalName     String
+  address          String
+  phone            String
+  additionalPhone  String?
+  isVerified       Boolean        @default(false)
+  status           HospitalStatus @default(PENDING)
+  reviewNotes      String?
+  reviewedAt       DateTime?
   reviewedByUserId Int?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  staff      HospitalStaffMember[]
-  bloodUnits BloodUnit[]
+  staff         HospitalStaffMember[]
+  bloodUnits    BloodUnit[]
+  bloodRequests BloodRequest[]
+  reservations  Reservation[]
+  transfersFrom Transfer[]            @relation("TransferFromHospital")
+  transfersTo   Transfer[]            @relation("TransferToHospital")
 }
 
 model HospitalStaffMember {
@@ -221,6 +272,7 @@ model BloodUnit {
   hospitalProfileId  Int
   bagId              String
   bloodType          BloodType
+  component          BloodComponent     @default(RED_CELLS)
   collectionDate     DateTime
   expiryDate         DateTime
   screeningStatus    ScreeningStatus    @default(PENDING)
@@ -236,10 +288,36 @@ model BloodUnit {
 
   hospitalProfile HospitalProfile @relation(fields: [hospitalProfileId], references: [id], onDelete: Cascade)
 
+  reservations Reservation[]
+  transfers    Transfer[]
+
   @@unique([hospitalProfileId, bagId])
   @@index([hospitalProfileId])
   @@index([hospitalProfileId, bloodType])
   @@index([expiryDate])
+}
+
+model BloodRequest {
+  id                Int                @id @default(autoincrement())
+  hospitalProfileId Int
+  createdByUserId   Int
+  component         BloodComponent
+  bloodType         BloodType
+  requiredUnits     Int
+  urgency           RequestUrgency     @default(ROUTINE)
+  location          String?
+  notes             String?
+  status            BloodRequestStatus @default(OPEN)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  hospitalProfile HospitalProfile @relation(fields: [hospitalProfileId], references: [id], onDelete: Cascade)
+
+  reservations Reservation[]
+
+  @@index([hospitalProfileId])
+  @@index([status])
+  @@index([bloodType, component])
 }
 
 model MedicalReport {
@@ -270,4 +348,86 @@ model DonationRecord {
   donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
 
   @@index([donorProfileId])
+}
+
+model Reservation {
+  id                Int                 @id @default(autoincrement())
+  bloodUnitId       Int
+  bloodRequestId    Int?
+  hospitalProfileId Int
+  donorProfileId    Int?
+  status            ReservationStatus   @default(ACTIVE)
+  donorResponse     DonorResponseStatus @default(PENDING)
+  donorRespondedAt  DateTime?
+  expiresAt         DateTime
+  notes             String?
+  reason            String?
+  confirmedAt       DateTime?
+  cancelledAt       DateTime?
+  releasedAt        DateTime?
+  consumedAt        DateTime?
+  createdByUserId   Int
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  bloodUnit       BloodUnit       @relation(fields: [bloodUnitId], references: [id], onDelete: Cascade)
+  bloodRequest    BloodRequest?   @relation(fields: [bloodRequestId], references: [id], onDelete: SetNull)
+  hospitalProfile HospitalProfile @relation(fields: [hospitalProfileId], references: [id], onDelete: Cascade)
+  donorProfile    DonorProfile?   @relation(fields: [donorProfileId], references: [id], onDelete: SetNull)
+  transfers       Transfer[]
+
+  @@index([bloodUnitId])
+  @@index([hospitalProfileId])
+  @@index([bloodRequestId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model Transfer {
+  id                    Int            @id @default(autoincrement())
+  bloodUnitId           Int
+  fromHospitalProfileId Int
+  toHospitalProfileId   Int
+  reservationId         Int?
+  status                TransferStatus @default(REQUESTED)
+  reason                String?
+  notes                 String?
+  rejectionReason       String?
+  requestedByUserId     Int
+  approvedByUserId      Int?
+  dispatchedByUserId    Int?
+  receivedByUserId      Int?
+  completedByUserId     Int?
+  approvedAt            DateTime?
+  dispatchedAt          DateTime?
+  receivedAt            DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+
+  bloodUnit    BloodUnit       @relation(fields: [bloodUnitId], references: [id], onDelete: Cascade)
+  fromHospital HospitalProfile @relation("TransferFromHospital", fields: [fromHospitalProfileId], references: [id], onDelete: Cascade)
+  toHospital   HospitalProfile @relation("TransferToHospital", fields: [toHospitalProfileId], references: [id], onDelete: Cascade)
+  reservation  Reservation?    @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  events       TransferEvent[]
+
+  @@index([bloodUnitId])
+  @@index([fromHospitalProfileId])
+  @@index([toHospitalProfileId])
+  @@index([reservationId])
+  @@index([status])
+}
+
+model TransferEvent {
+  id          Int             @id @default(autoincrement())
+  transferId  Int
+  fromStatus  TransferStatus?
+  toStatus    TransferStatus
+  note        String?
+  actorUserId Int?
+  createdAt   DateTime        @default(now())
+
+  transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
 }

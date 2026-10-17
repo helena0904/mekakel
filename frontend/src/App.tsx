@@ -26,6 +26,15 @@ import HospitalProfilePage from './pages/hospital/hospital-profile'
 import HospitalStaffPage from './pages/hospital/hospital-staff'
 import BloodInventoryPage from './pages/hospital/blood-inventory'
 
+import RequestListPage from './pages/requests/request-list'
+import CreateRequestPage from './pages/requests/create-request'
+import RequestDetailsPage from './pages/requests/request-details'
+import MatchingResultsPage from './pages/requests/matching-results'
+
+import ReservationsPage from './pages/reservations/reservations'
+import TransfersPage from './pages/transfers/transfers'
+import TransferDetailsPage from './pages/transfers/transfer-details'
+
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
@@ -113,6 +122,41 @@ function App() {
           <Route
             path="/hospital/inventory"
             element={<BloodInventoryPage />}
+          />
+
+          <Route
+            path="/hospital/requests"
+            element={<RequestListPage />}
+          />
+
+          <Route
+            path="/hospital/requests/new"
+            element={<CreateRequestPage />}
+          />
+
+          <Route
+            path="/hospital/requests/:id"
+            element={<RequestDetailsPage />}
+          />
+
+          <Route
+            path="/hospital/requests/:id/matches"
+            element={<MatchingResultsPage />}
+          />
+
+          <Route
+            path="/hospital/reservations"
+            element={<ReservationsPage />}
+          />
+
+          <Route
+            path="/hospital/transfers"
+            element={<TransfersPage />}
+          />
+
+          <Route
+            path="/hospital/transfers/:id"
+            element={<TransferDetailsPage />}
           />
         </Route>
 

@@ -15,6 +15,7 @@ export interface SerializableBloodUnit {
   hospitalProfileId: number
   bagId: string
   bloodType: string
+  component: string
   collectionDate: Date
   expiryDate: Date
   screeningStatus: string
@@ -85,6 +86,10 @@ function buildWhere(
 
   if (filters.bloodType) {
     where.bloodType = filters.bloodType
+  }
+
+  if (filters.component) {
+    where.component = filters.component
   }
 
   if (filters.search) {
@@ -163,6 +168,7 @@ export function createUnit(
       hospitalProfileId,
       bagId: data.bagId,
       bloodType: data.bloodType,
+      component: data.component ?? 'RED_CELLS',
       collectionDate: new Date(data.collectionDate),
       expiryDate: new Date(data.expiryDate),
       screeningStatus,
@@ -197,6 +203,7 @@ export function updateUnit(
     data: {
       bagId: data.bagId,
       bloodType: data.bloodType,
+      component: data.component,
       collectionDate: data.collectionDate
         ? new Date(data.collectionDate)
         : undefined,

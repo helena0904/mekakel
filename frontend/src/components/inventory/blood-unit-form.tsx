@@ -5,17 +5,23 @@ import {
   updateUnit,
 } from '../../services/inventory.service'
 import type {
+  BloodComponent,
   BloodType,
   BloodUnit,
   BloodUnitStatusValue,
   ConfirmationStatusValue,
   ScreeningStatusValue,
 } from '../../services/inventory.service'
+import { BLOOD_COMPONENT_LABELS } from '../../services/inventory.service'
 import { BLOOD_TYPE_LABELS } from '../../services/donor.service'
 
 const BLOOD_TYPE_OPTIONS = Object.keys(
   BLOOD_TYPE_LABELS
 ) as BloodType[]
+
+const BLOOD_COMPONENT_OPTIONS = Object.keys(
+  BLOOD_COMPONENT_LABELS
+) as BloodComponent[]
 
 interface BloodUnitFormProps {
   unit?: BloodUnit | null
@@ -37,6 +43,9 @@ function BloodUnitForm({
   const [bagId, setBagId] = useState(unit?.bagId ?? '')
   const [bloodType, setBloodType] = useState<BloodType>(
     unit?.bloodType ?? 'O_POSITIVE'
+  )
+  const [component, setComponent] = useState<BloodComponent>(
+    unit?.component ?? 'RED_CELLS'
   )
   const [collectionDate, setCollectionDate] = useState(
     toDateInput(unit?.collectionDate)
@@ -98,6 +107,7 @@ function BloodUnitForm({
       const input = {
         bagId: bagId.trim(),
         bloodType,
+        component,
         collectionDate,
         expiryDate,
         screeningStatus,
@@ -169,6 +179,28 @@ function BloodUnitForm({
               {BLOOD_TYPE_OPTIONS.map((option) => (
                 <option key={option} value={option}>
                   {BLOOD_TYPE_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="unit-component">
+              Component
+            </label>
+            <select
+              id="unit-component"
+              value={component}
+              onChange={(event) =>
+                setComponent(
+                  event.target.value as BloodComponent
+                )
+              }
+              disabled={saving}
+            >
+              {BLOOD_COMPONENT_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {BLOOD_COMPONENT_LABELS[option]}
                 </option>
               ))}
             </select>
