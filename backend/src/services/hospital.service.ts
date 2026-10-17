@@ -1,12 +1,55 @@
 import bcrypt from 'bcrypt'
 
 import prisma from '../lib/prisma'
+import {
+  recordAudit,
+  type AuditActor,
+} from './audit.service'
+import { notifyUser } from './notification.service'
+import type { NotificationTypeValue } from '../validators/notification.schema'
 import type {
   CreateStaffInput,
   ReviewHospitalInput,
   UpdateHospitalProfileInput,
   UpdateStaffInput,
 } from '../validators/hospital.schema'
+
+export const HOSPITAL_REVIEW_NOTIFICATION: Record<
+  ReviewHospitalInput['decision'],
+  NotificationTypeValue
+> = {
+  APPROVE: 'HOSPITAL_APPROVED',
+  REJECT: 'HOSPITAL_REJECTED',
+  SUSPEND: 'HOSPITAL_SUSPENDED',
+  ACTIVATE: 'HOSPITAL_ACTIVATED',
+}
+
+export interface HospitalReviewTarget {
+  userId: number
+  id: number
+  hospitalName: string
+  reviewedAt: Date | null
+}
+
+export async function notifyHospitalReview(
+  hospital: HospitalReviewTarget,
+  decision: ReviewHospitalInput['decision'],
+  notes?: string
+) {
+  await notifyUser(
+    hospital.userId,
+    HOSPITAL_REVIEW_NOTIFICATION[decision],
+    {
+      hospitalName: hospital.hospitalName,
+      reason: notes ?? undefined,
+    },
+    {
+      relatedEntityType: 'HospitalProfile',
+      relatedEntityId: hospital.id,
+      dedupeKey: `hospital:${hospital.id}:review:${decision}:${hospital.reviewedAt?.getTime() ?? ''}`,
+    }
+  )
+}
 
 export type HospitalStaffRoleValue =
   | 'OWNER'
@@ -227,11 +270,11 @@ function reviewTarget(
 export async function reviewHospital(
   hospitalProfileId: number,
   data: ReviewHospitalInput,
-  adminUserId: number
+  actor: AuditActor = {}
 ) {
   const hospital = await prisma.hospitalProfile.findUnique({
     where: { id: hospitalProfileId },
-    select: { id: true, userId: true },
+    select: { id: true, userId: true, hospitalName: true },
   })
 
   if (!hospital) {
@@ -248,7 +291,7 @@ export async function reviewHospital(
         isVerified: target.isVerified,
         reviewNotes: data.notes || null,
         reviewedAt: new Date(),
-        reviewedByUserId: adminUserId,
+        reviewedByUserId: actor.userId ?? null,
       },
       include: {
         user: { select: staffUserSelect },
@@ -259,6 +302,22 @@ export async function reviewHospital(
       where: { id: hospital.userId },
       data: { isActive: target.isActive },
     })
+
+    await recordAudit(
+      {
+        ...actor,
+        action: 'HOSPITAL_REGISTRATION_DECIDED',
+        entityType: 'HospitalProfile',
+        entityId: hospitalProfileId,
+        summary: `Hospital registration set to ${target.status}`,
+        metadata: {
+          decision: data.decision,
+          status: target.status,
+          notes: data.notes ?? null,
+        },
+      },
+      tx,
+    )
 
     return updated
   })
