@@ -6,6 +6,8 @@ const API_URL = (
   '/api'
 ).replace(/\/+$/, '')
 
+export { API_URL }
+
 async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
