@@ -1,13 +1,15 @@
 import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { dashboardPathFor } from '../utils/dashboard'
+import { dashboardPathForUser } from '../utils/dashboard'
 
 interface ProtectedRouteProps {
-  allowedAccountType: 'INDIVIDUAL' | 'HOSPITAL'
+  allowedAccountType?: 'INDIVIDUAL' | 'HOSPITAL'
+  allowedRoles?: string[]
 }
 
 function ProtectedRoute({
   allowedAccountType,
+  allowedRoles,
 }: ProtectedRouteProps) {
   const { user, token, isLoading } = useAuth()
 
@@ -29,12 +31,21 @@ function ProtectedRoute({
     return <Navigate to="/login" replace />
   }
 
-  if (user.accountType !== allowedAccountType) {
+  if (
+    allowedRoles &&
+    !allowedRoles.includes(user.role)
+  ) {
     return (
-      <Navigate
-        to={dashboardPathFor(user.accountType)}
-        replace
-      />
+      <Navigate to={dashboardPathForUser(user)} replace />
+    )
+  }
+
+  if (
+    allowedAccountType &&
+    user.accountType !== allowedAccountType
+  ) {
+    return (
+      <Navigate to={dashboardPathForUser(user)} replace />
     )
   }
 

@@ -5,7 +5,7 @@ import {
   useNavigate,
 } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import { dashboardPathFor } from '../utils/dashboard'
+import { dashboardPathForUser } from '../utils/dashboard'
 import logo from '../assets/logo-placeholder.jpg'
 
 function Navbar() {
@@ -16,7 +16,7 @@ function Navbar() {
   const isAuthenticated = Boolean(user && token)
 
   const dashboardPath = user
-    ? dashboardPathFor(user.accountType)
+    ? dashboardPathForUser(user)
     : '/login'
 
   useEffect(() => {

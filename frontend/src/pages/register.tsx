@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { login, register } from '../services/auth.service'
 import { verifyFayda } from '../services/fayda.service'
 import { useAuth } from '../hooks/useAuth'
-import { dashboardPathFor } from '../utils/dashboard'
+import { dashboardPathForUser } from '../utils/dashboard'
 
 
 type Weekday =
@@ -426,7 +426,7 @@ function Register() {
           accountType: 'INDIVIDUAL',
         })
         loginUser(response.token, response.user)
-        navigate(dashboardPathFor(response.user.accountType), { replace: true })
+        navigate(dashboardPathForUser(response.user), { replace: true })
       } catch {
         navigate('/login', {
           replace: true,
@@ -488,7 +488,7 @@ function Register() {
           accountType: 'HOSPITAL',
         })
         loginUser(response.token, response.user)
-        navigate(dashboardPathFor(response.user.accountType), { replace: true })
+        navigate(dashboardPathForUser(response.user), { replace: true })
       } catch {
         navigate('/login', {
           replace: true,
@@ -511,7 +511,7 @@ function Register() {
   if (user && token) {
     return (
       <Navigate
-        to={dashboardPathFor(user.accountType)}
+        to={dashboardPathForUser(user)}
         replace
       />
     )
