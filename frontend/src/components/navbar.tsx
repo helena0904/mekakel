@@ -83,6 +83,10 @@ function Navbar() {
               Dashboard
             </Link>
 
+            <Link to="/notifications">
+              Notifications
+            </Link>
+
             <button
               type="button"
               onClick={handleLogout}

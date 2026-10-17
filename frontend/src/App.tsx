@@ -35,6 +35,8 @@ import ReservationsPage from './pages/reservations/reservations'
 import TransfersPage from './pages/transfers/transfers'
 import TransferDetailsPage from './pages/transfers/transfer-details'
 
+import NotificationsPage from './pages/notifications/notifications'
+
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
@@ -97,6 +99,11 @@ function App() {
             path="/donor/history"
             element={<DonorHistoryPage />}
           />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
         </Route>
 
         <Route
@@ -157,6 +164,11 @@ function App() {
           <Route
             path="/hospital/transfers/:id"
             element={<TransferDetailsPage />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
           />
         </Route>
 
