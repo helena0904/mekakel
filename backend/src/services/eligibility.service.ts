@@ -57,6 +57,22 @@ const MAX_AGE = 65
 const MIN_WEIGHT_KG = 50
 const DAY_MS = 24 * 60 * 60 * 1000
 
+/**
+ * Configurable screening thresholds. Defaults mirror national blood-service
+ * guidance and can be adjusted through organization settings.
+ */
+export interface EligibilityConfig {
+  minAge: number
+  maxAge: number
+  minWeightKg: number
+}
+
+export const DEFAULT_ELIGIBILITY_CONFIG: EligibilityConfig = {
+  minAge: MIN_AGE,
+  maxAge: MAX_AGE,
+  minWeightKg: MIN_WEIGHT_KG,
+}
+
 export function calculateAge(
   dateOfBirth: Date | null,
   now: Date = new Date()
@@ -92,18 +108,21 @@ function latestDonationDate(
 export function computeEligibility(
   profile: EligibilityProfileInput,
   donationDates: Date[] = [],
-  now: Date = new Date()
+  now: Date = new Date(),
+  config: EligibilityConfig = DEFAULT_ELIGIBILITY_CONFIG
 ): EligibilityResult {
   const checks: EligibilityCheck[] = []
 
   const age = calculateAge(profile.dateOfBirth, now)
 
   const agePassed =
-    age !== null && age >= MIN_AGE && age <= MAX_AGE
+    age !== null &&
+    age >= config.minAge &&
+    age <= config.maxAge
 
   checks.push({
     key: 'age',
-    label: 'Age between 18 and 65',
+    label: `Age between ${config.minAge} and ${config.maxAge}`,
     passed: agePassed,
     detail:
       age === null
@@ -111,11 +130,11 @@ export function computeEligibility(
         : `You are ${age} years old.`,
   })
 
-  const weightPassed = profile.weight >= MIN_WEIGHT_KG
+  const weightPassed = profile.weight >= config.minWeightKg
 
   checks.push({
     key: 'weight',
-    label: `Weigh at least ${MIN_WEIGHT_KG} kg`,
+    label: `Weigh at least ${config.minWeightKg} kg`,
     passed: weightPassed,
     detail: `Your recorded weight is ${profile.weight} kg.`,
   })
