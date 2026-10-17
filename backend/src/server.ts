@@ -1,6 +1,7 @@
 import app from './app'
 import prisma from './lib/prisma'
 import { startExpireReservationsJob } from './jobs/expire-reservations.job'
+import { startSendNotificationsJob } from './jobs/send-notifications.job'
 
 const PORT = Number(process.env.PORT ?? 3000)
 
@@ -10,6 +11,7 @@ prisma
     console.log('Database connected')
 
     startExpireReservationsJob()
+    startSendNotificationsJob()
 
     app.listen(PORT, () => {
       console.log(`MEKAKEL backend running on http://localhost:${PORT}`)
