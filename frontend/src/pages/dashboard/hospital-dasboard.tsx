@@ -142,6 +142,16 @@ function HospitalDashboard() {
                     Blood requests and matching sources
                   </Link>
                 </li>
+                <li>
+                  <Link to="/hospital/reservations">
+                    Reserved units and donor responses
+                  </Link>
+                </li>
+                <li>
+                  <Link to="/hospital/transfers">
+                    Hospital-to-hospital transfers
+                  </Link>
+                </li>
               </ul>
             </section>
           </>

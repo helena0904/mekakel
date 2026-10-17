@@ -31,6 +31,10 @@ import CreateRequestPage from './pages/requests/create-request'
 import RequestDetailsPage from './pages/requests/request-details'
 import MatchingResultsPage from './pages/requests/matching-results'
 
+import ReservationsPage from './pages/reservations/reservations'
+import TransfersPage from './pages/transfers/transfers'
+import TransferDetailsPage from './pages/transfers/transfer-details'
+
 import ProtectedRoute from './routes/ProtectedRoute'
 
 function App() {
@@ -138,6 +142,21 @@ function App() {
           <Route
             path="/hospital/requests/:id/matches"
             element={<MatchingResultsPage />}
+          />
+
+          <Route
+            path="/hospital/reservations"
+            element={<ReservationsPage />}
+          />
+
+          <Route
+            path="/hospital/transfers"
+            element={<TransfersPage />}
+          />
+
+          <Route
+            path="/hospital/transfers/:id"
+            element={<TransferDetailsPage />}
           />
         </Route>
 
