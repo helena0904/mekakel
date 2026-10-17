@@ -7,7 +7,7 @@ import {
 } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { login } from '../services/auth.service'
-import { dashboardPathFor } from '../utils/dashboard'
+import { dashboardPathForUser } from '../utils/dashboard'
 
 type LoginType = 'individual' | 'hospital' | null
 
@@ -34,7 +34,7 @@ function Login() {
   if (user && token) {
     return (
       <Navigate
-        to={dashboardPathFor(user.accountType)}
+        to={dashboardPathForUser(user)}
         replace
       />
     )
@@ -64,7 +64,7 @@ function Login() {
 
       loginUser(response.token, response.user)
 
-      navigate(dashboardPathFor(response.user.accountType), {
+      navigate(dashboardPathForUser(response.user), {
         replace: true,
       })
     } catch (err) {

@@ -3,6 +3,11 @@ import type { ZodTypeAny } from 'zod'
 
 import type { AuthRequest } from '../middleware/auth.middleware'
 import { AppError, isAppError } from '../lib/errors'
+import {
+  actorFromRequest,
+  recordAuditSafely,
+  type AuditActionValue,
+} from '../services/audit.service'
 import { resolveHospitalAccess } from '../services/hospital.service'
 import type {
   HospitalAccess,
@@ -89,6 +94,22 @@ function respondError(res: Response, error: unknown, fallback: string) {
   console.error(fallback, error)
 
   return res.status(500).json({ message: fallback })
+}
+
+function auditTransfer(
+  req: AuthRequest,
+  action: AuditActionValue,
+  transfer: unknown,
+  summary: string
+) {
+  void recordAuditSafely({
+    ...actorFromRequest(req),
+    action,
+    entityType: 'Transfer',
+    entityId:
+      (transfer as { id?: number } | null)?.id ?? null,
+    summary,
+  })
 }
 
 export async function getTransfers(
@@ -220,6 +241,13 @@ export async function postTransfer(
       parsed.data
     )
 
+    auditTransfer(
+      req,
+      'TRANSFER_REQUESTED',
+      transfer,
+      'Transfer requested'
+    )
+
     return res.status(201).json({
       message: 'Transfer requested',
       transfer,
@@ -245,7 +273,8 @@ function handleTransferAction(
   extract: (body: unknown) => string | undefined,
   action: TransferAction,
   successMessage: string,
-  fallbackMessage: string
+  fallbackMessage: string,
+  auditAction: AuditActionValue
 ) {
   return async function handler(
     req: AuthRequest,
@@ -287,6 +316,13 @@ function handleTransferAction(
         extract(parsed.data)
       )
 
+      auditTransfer(
+        req,
+        auditAction,
+        transfer,
+        successMessage
+      )
+
       return res
         .status(200)
         .json({ message: successMessage, transfer })
@@ -307,7 +343,8 @@ export const postApproveTransfer = handleTransferAction(
   noteFromBody,
   approveTransfer,
   'Transfer approved',
-  'Unable to approve the transfer'
+  'Unable to approve the transfer',
+  'TRANSFER_APPROVED'
 )
 
 export const postRejectTransfer = handleTransferAction(
@@ -315,7 +352,8 @@ export const postRejectTransfer = handleTransferAction(
   reasonFromBody,
   rejectTransfer,
   'Transfer rejected',
-  'Unable to reject the transfer'
+  'Unable to reject the transfer',
+  'TRANSFER_REJECTED'
 )
 
 export const postDispatchTransfer = handleTransferAction(
@@ -323,7 +361,8 @@ export const postDispatchTransfer = handleTransferAction(
   noteFromBody,
   dispatchTransfer,
   'Transfer dispatched',
-  'Unable to dispatch the transfer'
+  'Unable to dispatch the transfer',
+  'TRANSFER_DISPATCHED'
 )
 
 export const postReceiveTransfer = handleTransferAction(
@@ -331,7 +370,8 @@ export const postReceiveTransfer = handleTransferAction(
   noteFromBody,
   receiveTransfer,
   'Transfer received',
-  'Unable to mark the transfer as received'
+  'Unable to mark the transfer as received',
+  'TRANSFER_RECEIVED'
 )
 
 export const postCompleteTransfer = handleTransferAction(
@@ -339,7 +379,8 @@ export const postCompleteTransfer = handleTransferAction(
   noteFromBody,
   completeTransfer,
   'Transfer completed',
-  'Unable to complete the transfer'
+  'Unable to complete the transfer',
+  'TRANSFER_COMPLETED'
 )
 
 export const postCancelTransfer = handleTransferAction(
@@ -347,5 +388,6 @@ export const postCancelTransfer = handleTransferAction(
   noteFromBody,
   cancelTransfer,
   'Transfer cancelled',
-  'Unable to cancel the transfer'
+  'Unable to cancel the transfer',
+  'TRANSFER_CANCELLED'
 )

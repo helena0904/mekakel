@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { useAuth } from '../../hooks/useAuth'
-import { dashboardPathFor } from '../../utils/dashboard'
+import { dashboardPathForUser } from '../../utils/dashboard'
 import { formatDate } from '../../services/donor.service'
 import {
   getNotificationPreferences,
@@ -60,7 +60,7 @@ function NotificationsPage() {
   const [success, setSuccess] = useState('')
 
   const backPath = user
-    ? dashboardPathFor(user.accountType)
+    ? dashboardPathForUser(user)
     : '/'
 
   useEffect(() => {

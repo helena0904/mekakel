@@ -1,7 +1,6 @@
 import prisma from '../lib/prisma'
 import type {
   CreateDonationRecordInput,
-  ReviewDonorVerificationInput,
   UpdateAvailabilityInput,
   UpdateProfileInput,
 } from '../validators/donor.schema'
@@ -185,54 +184,6 @@ export function listDonorRegistrations() {
       },
       medicalReports: {
         orderBy: { createdAt: 'desc' },
-      },
-    },
-  })
-}
-
-function donorReviewStatus(
-  decision: ReviewDonorVerificationInput['decision']
-): 'VERIFIED' | 'REJECTED' | 'ADDITIONAL_INFO_REQUIRED' {
-  switch (decision) {
-    case 'VERIFY':
-      return 'VERIFIED'
-    case 'REQUEST_INFO':
-      return 'ADDITIONAL_INFO_REQUIRED'
-    default:
-      return 'REJECTED'
-  }
-}
-
-export async function reviewDonorVerification(
-  donorProfileId: number,
-  data: ReviewDonorVerificationInput
-) {
-  const donor = await prisma.donorProfile.findUnique({
-    where: { id: donorProfileId },
-    select: { id: true },
-  })
-
-  if (!donor) {
-    return null
-  }
-
-  const status = donorReviewStatus(data.decision)
-
-  return prisma.donorProfile.update({
-    where: { id: donorProfileId },
-    data: {
-      verificationStatus: status,
-      verificationNotes: data.notes || null,
-      verifiedAt: status === 'VERIFIED' ? new Date() : null,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          isActive: true,
-        },
       },
     },
   })

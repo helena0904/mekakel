@@ -12,6 +12,8 @@ import matchingRoutes from './routes/matching.routes'
 import reservationRoutes from './routes/reservation.routes'
 import transferRoutes from './routes/transfer.routes'
 import notificationRoutes from './routes/notification.routes'
+import doctorRoutes from './routes/doctor.routes'
+import adminRoutes from './routes/admin.routes'
 
 function parseTrustProxy(): boolean | number {
   const raw = process.env.TRUST_PROXY?.trim()
@@ -70,6 +72,8 @@ export function createApp(): Express {
   app.use('/api/reservations', reservationRoutes)
   app.use('/api/transfers', transferRoutes)
   app.use('/api/notifications', notificationRoutes)
+  app.use('/api/doctor', doctorRoutes)
+  app.use('/api/admin', adminRoutes)
 
   app.get('/', (_req, res) => {
     res.json({

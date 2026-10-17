@@ -2,6 +2,11 @@ import type { Response } from 'express'
 
 import type { AuthRequest } from '../middleware/auth.middleware'
 import { AppError, isAppError } from '../lib/errors'
+import {
+  actorFromRequest,
+  recordAuditSafely,
+  type AuditActionValue,
+} from '../services/audit.service'
 import { resolveHospitalAccess } from '../services/hospital.service'
 import type {
   HospitalAccess,
@@ -85,6 +90,22 @@ function respondError(res: Response, error: unknown, fallback: string) {
   console.error(fallback, error)
 
   return res.status(500).json({ message: fallback })
+}
+
+function auditReservation(
+  req: AuthRequest,
+  action: AuditActionValue,
+  reservation: unknown,
+  summary: string
+) {
+  void recordAuditSafely({
+    ...actorFromRequest(req),
+    action,
+    entityType: 'Reservation',
+    entityId:
+      (reservation as { id?: number } | null)?.id ?? null,
+    summary,
+  })
 }
 
 export async function getReservations(
@@ -197,6 +218,13 @@ export async function postReservation(
       parsed.data
     )
 
+    auditReservation(
+      req,
+      'RESERVATION_CREATED',
+      reservation,
+      'Blood unit reserved'
+    )
+
     return res.status(201).json({
       message: 'Blood unit reserved',
       reservation,
@@ -238,6 +266,13 @@ export async function postConfirmReservation(
       reservationId
     )
 
+    auditReservation(
+      req,
+      'RESERVATION_CONFIRMED',
+      reservation,
+      'Reservation confirmed'
+    )
+
     return res.status(200).json({
       message: 'Reservation confirmed',
       reservation,
@@ -260,7 +295,8 @@ async function handleTerminalAction(
     reason?: string
   ) => Promise<unknown>,
   successMessage: string,
-  fallbackMessage: string
+  fallbackMessage: string,
+  auditAction: AuditActionValue
 ) {
   const access = await ensureHospital(req, res)
 
@@ -299,6 +335,13 @@ async function handleTerminalAction(
       parsed.data.reason
     )
 
+    auditReservation(
+      req,
+      auditAction,
+      reservation,
+      successMessage
+    )
+
     return res
       .status(200)
       .json({ message: successMessage, reservation })
@@ -316,7 +359,8 @@ export function postCancelReservation(
     res,
     cancelReservation,
     'Reservation cancelled',
-    'Unable to cancel the reservation'
+    'Unable to cancel the reservation',
+    'RESERVATION_CANCELLED'
   )
 }
 
@@ -329,7 +373,8 @@ export function postReleaseReservation(
     res,
     releaseReservation,
     'Reservation released',
-    'Unable to release the reservation'
+    'Unable to release the reservation',
+    'RESERVATION_RELEASED'
   )
 }
 
@@ -359,6 +404,13 @@ export async function postConsumeReservation(
     const reservation = await consumeReservation(
       access.hospitalProfileId,
       reservationId
+    )
+
+    auditReservation(
+      req,
+      'RESERVATION_CONSUMED',
+      reservation,
+      'Reserved unit marked as used'
     )
 
     return res.status(200).json({

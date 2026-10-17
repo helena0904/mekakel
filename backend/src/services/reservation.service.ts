@@ -17,6 +17,7 @@ import type {
   ListReservationsQuery,
 } from '../validators/reservation.schema'
 import { notifyHospitalOwner } from './notification.service'
+import { recordAuditSafely } from './audit.service'
 import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const reservationInclude = {
@@ -592,12 +593,20 @@ export async function expireDueReservations(
 
   for (const { id } of due) {
     try {
-      await transitionToTerminal(
+      const reservation = await transitionToTerminal(
         null,
         id,
         'EXPIRED',
         'Reservation expired or the unit became ineligible'
       )
+
+      await recordAuditSafely({
+        action: 'RESERVATION_EXPIRED',
+        entityType: 'Reservation',
+        entityId: reservation.id,
+        summary: 'Reservation expired or the unit became ineligible',
+      })
+
       expired += 1
     } catch (error) {
       // A concurrent transition won the race; skip it.

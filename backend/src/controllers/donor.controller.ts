@@ -8,13 +8,16 @@ import {
   createMedicalReport,
   findDonorProfile,
   findReportForUser,
-  listDonorRegistrations,
-  reviewDonorVerification,
   updateAvailability,
   updateDonorProfile,
 } from '../services/donor.service'
+import {
+  decideDonorVerification,
+  listVerificationQueue,
+} from '../services/medical-verification.service'
+import { actorFromRequest } from '../services/audit.service'
 import { computeEligibility } from '../services/eligibility.service'
-import { notifyUser } from '../services/notification.service'
+import { getEligibilityConfig } from '../services/settings.service'
 import type { AuthRequest } from '../middleware/auth.middleware'
 import {
   createDonationRecordSchema,
@@ -23,22 +26,12 @@ import {
   updateProfileSchema,
   uploadReportSchema,
 } from '../validators/donor.schema'
-import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const IMAGE_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
 ]
-
-const DONOR_REVIEW_NOTIFICATION: Record<
-  'VERIFY' | 'REJECT' | 'REQUEST_INFO',
-  NotificationTypeValue
-> = {
-  VERIFY: 'DONOR_VERIFICATION_APPROVED',
-  REJECT: 'DONOR_VERIFICATION_REJECTED',
-  REQUEST_INFO: 'DONOR_ADDITIONAL_INFO_REQUIRED',
-}
 
 function ensureAdmin(
   req: AuthRequest,
@@ -68,7 +61,7 @@ export async function getDonorRegistrations(
   }
 
   try {
-    const donors = await listDonorRegistrations()
+    const donors = await listVerificationQueue({ status: 'ALL' })
 
     return res.status(200).json({ donors })
   } catch (error) {
@@ -109,37 +102,16 @@ export async function reviewDonorRegistration(
   }
 
   try {
-    const donor = await reviewDonorVerification(
+    const donor = await decideDonorVerification(
       donorProfileId,
-      parsed.data
+      parsed.data,
+      actorFromRequest(req)
     )
 
     if (!donor) {
       return res.status(404).json({
         message: 'Donor not found',
       })
-    }
-
-    try {
-      await notifyUser(
-        donor.userId,
-        DONOR_REVIEW_NOTIFICATION[parsed.data.decision],
-        {
-          recipientName: donor.user.name,
-          notes: parsed.data.notes ?? undefined,
-          reason: parsed.data.notes ?? undefined,
-        },
-        {
-          relatedEntityType: 'DonorProfile',
-          relatedEntityId: donor.id,
-          dedupeKey: `donor:${donor.id}:review:${parsed.data.decision}:${donor.verifiedAt?.getTime() ?? Date.now()}`,
-        }
-      )
-    } catch (notificationError) {
-      console.error(
-        '[donor] review notification failed',
-        notificationError
-      )
     }
 
     return res.status(200).json({
@@ -230,7 +202,9 @@ export async function getDashboard(
 
     const eligibility = computeEligibility(
       profile,
-      profile.donationHistory.map((record) => record.donatedAt)
+      profile.donationHistory.map((record) => record.donatedAt),
+      new Date(),
+      await getEligibilityConfig()
     )
 
     return res.status(200).json({
@@ -378,7 +352,9 @@ export async function getEligibility(
 
     const eligibility = computeEligibility(
       profile,
-      profile.donationHistory.map((record) => record.donatedAt)
+      profile.donationHistory.map((record) => record.donatedAt),
+      new Date(),
+      await getEligibilityConfig()
     )
 
     return res.status(200).json({

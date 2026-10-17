@@ -16,6 +16,8 @@ import ResetPassword from './pages/reset-password'
 
 import DonorDashboard from './pages/dashboard/donor-dashboard'
 import HospitalDashboard from './pages/dashboard/hospital-dasboard'
+import AdminDashboard from './pages/dashboard/admin-dashboard'
+import DoctorDashboard from './pages/dashboard/doctor-dashboard'
 
 import DonorProfilePage from './pages/donor/donor-profile'
 import DonorAvailabilityPage from './pages/donor/donor-availability'
@@ -25,6 +27,13 @@ import DonorHistoryPage from './pages/donor/donor-history'
 import HospitalProfilePage from './pages/hospital/hospital-profile'
 import HospitalStaffPage from './pages/hospital/hospital-staff'
 import BloodInventoryPage from './pages/hospital/blood-inventory'
+
+import HospitalApprovalsPage from './pages/admin/hospital-approvals'
+import UserManagementPage from './pages/admin/user-management'
+import AuditLogsPage from './pages/admin/audit-logs'
+
+import VerificationQueuePage from './pages/doctor/verification-queue'
+import ReviewMedicalReportPage from './pages/doctor/review-medical-report'
 
 import RequestListPage from './pages/requests/request-list'
 import CreateRequestPage from './pages/requests/create-request'
@@ -164,6 +173,63 @@ function App() {
           <Route
             path="/hospital/transfers/:id"
             element={<TransferDetailsPage />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
+        </Route>
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['ADMIN']} />
+          }
+        >
+          <Route
+            path="/admin-dashboard"
+            element={<AdminDashboard />}
+          />
+
+          <Route
+            path="/admin/hospitals"
+            element={<HospitalApprovalsPage />}
+          />
+
+          <Route
+            path="/admin/users"
+            element={<UserManagementPage />}
+          />
+
+          <Route
+            path="/admin/audit-logs"
+            element={<AuditLogsPage />}
+          />
+
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
+        </Route>
+
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['DOCTOR']} />
+          }
+        >
+          <Route
+            path="/doctor-dashboard"
+            element={<DoctorDashboard />}
+          />
+
+          <Route
+            path="/doctor/verifications"
+            element={<VerificationQueuePage />}
+          />
+
+          <Route
+            path="/doctor/verifications/:id"
+            element={<ReviewMedicalReportPage />}
           />
 
           <Route

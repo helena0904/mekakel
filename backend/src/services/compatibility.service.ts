@@ -114,20 +114,39 @@ function isPlasma(component: string): boolean {
 }
 
 /**
+ * Configurable governance rules. Defaults preserve standard clinical
+ * practice; administrators may relax Rh enforcement or the reversed plasma
+ * ABO direction through organization settings.
+ */
+export interface CompatibilityConfig {
+  enforceRh: boolean
+  plasmaReversed: boolean
+}
+
+export const DEFAULT_COMPATIBILITY_CONFIG: CompatibilityConfig = {
+  enforceRh: true,
+  plasmaReversed: true,
+}
+
+/**
  * Preliminary compatibility of a donor unit/donor for a component request.
  */
 export function isCompatible(
   donorType: string,
   recipientType: string,
-  component: string
+  component: string,
+  config: CompatibilityConfig = DEFAULT_COMPATIBILITY_CONFIG
 ): boolean {
   if (isPlasma(component)) {
-    return isAboPlasmaCompatible(donorType, recipientType)
+    return config.plasmaReversed
+      ? isAboPlasmaCompatible(donorType, recipientType)
+      : isAboRedCellCompatible(donorType, recipientType)
   }
 
   return (
     isAboRedCellCompatible(donorType, recipientType) &&
-    isRhCompatible(donorType, recipientType)
+    (!config.enforceRh ||
+      isRhCompatible(donorType, recipientType))
   )
 }
 
@@ -137,10 +156,11 @@ export function isCompatible(
  */
 export function compatibleDonorTypes(
   recipientType: string,
-  component: string
+  component: string,
+  config: CompatibilityConfig = DEFAULT_COMPATIBILITY_CONFIG
 ): BloodTypeValue[] {
   return ALL_BLOOD_TYPES.filter((donorType) =>
-    isCompatible(donorType, recipientType, component)
+    isCompatible(donorType, recipientType, component, config)
   )
 }
 
@@ -154,19 +174,23 @@ export interface CompatibilityExplanation {
 export function explainCompatibility(
   donorType: string,
   recipientType: string,
-  component: string
+  component: string,
+  config: CompatibilityConfig = DEFAULT_COMPATIBILITY_CONFIG
 ): CompatibilityExplanation {
   const compatible = isCompatible(
     donorType,
     recipientType,
-    component
+    component,
+    config
   )
 
   if (isPlasma(component)) {
     return {
       compatible,
       component,
-      rule: 'Plasma ABO (reversed)',
+      rule: config.plasmaReversed
+        ? 'Plasma ABO (reversed)'
+        : 'Plasma ABO (standard)',
       detail: compatible
         ? 'Plasma ABO direction is compatible with the recipient.'
         : 'Plasma ABO direction is not compatible with the recipient.',
@@ -177,15 +201,19 @@ export function explainCompatibility(
     donorType,
     recipientType
   )
-  const rhOk = isRhCompatible(donorType, recipientType)
+  const rhOk =
+    !config.enforceRh ||
+    isRhCompatible(donorType, recipientType)
 
   return {
     compatible,
     component,
-    rule: 'ABO and Rh',
+    rule: config.enforceRh ? 'ABO and Rh' : 'ABO',
     detail: aboOk
       ? rhOk
-        ? 'ABO and Rh are both compatible.'
+        ? config.enforceRh
+          ? 'ABO and Rh are both compatible.'
+          : 'ABO is compatible. Rh enforcement is disabled by policy.'
         : 'ABO is compatible but Rh is not suitable for a Rh-negative recipient.'
       : 'ABO is not compatible with the recipient.',
   }

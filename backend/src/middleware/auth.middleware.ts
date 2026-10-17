@@ -24,6 +24,7 @@ interface AuthTokenClaims {
 export interface AuthRequest extends Request {
   user?: {
     userId: number
+    name: string
     role: string
     accountType: AccountType
     jti: string
@@ -116,6 +117,7 @@ export async function authenticateToken(
       },
       select: {
         id: true,
+        name: true,
         role: true,
         accountType: true,
         isActive: true,
@@ -170,6 +172,7 @@ export async function authenticateToken(
 
     req.user = {
       userId: user.id,
+      name: user.name,
       role: user.role,
       accountType: user.accountType,
       jti: decoded.jti,

@@ -14,6 +14,10 @@ import type {
   CompatibilityExplanation,
 } from './compatibility.service'
 import { computeEligibility } from './eligibility.service'
+import {
+  getCompatibilityConfig,
+  getEligibilityConfig,
+} from './settings.service'
 import { assignFefoRank, daysUntil } from './fefo.service'
 
 export interface MatchRequestRecord {
@@ -115,9 +119,16 @@ export async function matchRequest(
 ): Promise<MatchingResult> {
   const now = new Date()
 
+  const [compatibilityConfig, eligibilityConfig] =
+    await Promise.all([
+      getCompatibilityConfig(),
+      getEligibilityConfig(),
+    ])
+
   const donorTypes = compatibleDonorTypes(
     request.bloodType,
-    request.component
+    request.component,
+    compatibilityConfig
   )
 
   const [unitRows, donorRows] = await Promise.all([
@@ -163,7 +174,8 @@ export async function matchRequest(
     isCompatible(
       unit.bloodType,
       request.bloodType,
-      request.component
+      request.component,
+      compatibilityConfig
     )
   )
 
@@ -188,7 +200,8 @@ export async function matchRequest(
     compatibility: explainCompatibility(
       unit.bloodType,
       request.bloodType,
-      request.component
+      request.component,
+      compatibilityConfig
     ),
   }))
 
@@ -202,7 +215,8 @@ export async function matchRequest(
         !isCompatible(
           donor.bloodType,
           request.bloodType,
-          request.component
+          request.component,
+          compatibilityConfig
         )
       ) {
         return false
@@ -213,7 +227,8 @@ export async function matchRequest(
         donor.donationHistory.map(
           (record) => record.donatedAt
         ),
-        now
+        now,
+        eligibilityConfig
       )
 
       return eligibility.eligible
@@ -224,7 +239,8 @@ export async function matchRequest(
         donor.donationHistory.map(
           (record) => record.donatedAt
         ),
-        now
+        now,
+        eligibilityConfig
       )
 
       const reasons: string[] = [
@@ -295,7 +311,8 @@ export async function matchRequest(
         compatibility: explainCompatibility(
           donor.bloodType as string,
           request.bloodType,
-          request.component
+          request.component,
+          compatibilityConfig
         ),
       }
     })
