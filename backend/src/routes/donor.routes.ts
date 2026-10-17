@@ -29,4 +29,13 @@ router.get('/reports/:id/file', donorController.getReportFile)
 router.get('/history', donorController.getHistory)
 router.post('/history', donorController.postHistory)
 
+router.get(
+  '/registrations',
+  donorController.getDonorRegistrations
+)
+router.patch(
+  '/registrations/:id/verification',
+  donorController.reviewDonorRegistration
+)
+
 export default router

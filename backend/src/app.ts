@@ -11,6 +11,7 @@ import bloodRequestRoutes from './routes/blood-request.routes'
 import matchingRoutes from './routes/matching.routes'
 import reservationRoutes from './routes/reservation.routes'
 import transferRoutes from './routes/transfer.routes'
+import notificationRoutes from './routes/notification.routes'
 
 function parseTrustProxy(): boolean | number {
   const raw = process.env.TRUST_PROXY?.trim()
@@ -68,6 +69,7 @@ export function createApp(): Express {
   app.use('/api/matching', matchingRoutes)
   app.use('/api/reservations', reservationRoutes)
   app.use('/api/transfers', transferRoutes)
+  app.use('/api/notifications', notificationRoutes)
 
   app.get('/', (_req, res) => {
     res.json({

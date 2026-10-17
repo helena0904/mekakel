@@ -8,23 +8,152 @@ import {
   createMedicalReport,
   findDonorProfile,
   findReportForUser,
+  listDonorRegistrations,
+  reviewDonorVerification,
   updateAvailability,
   updateDonorProfile,
 } from '../services/donor.service'
 import { computeEligibility } from '../services/eligibility.service'
+import { notifyUser } from '../services/notification.service'
 import type { AuthRequest } from '../middleware/auth.middleware'
 import {
   createDonationRecordSchema,
+  reviewDonorVerificationSchema,
   updateAvailabilitySchema,
   updateProfileSchema,
   uploadReportSchema,
 } from '../validators/donor.schema'
+import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const IMAGE_MIME_TYPES = [
   'image/jpeg',
   'image/png',
   'image/webp',
 ]
+
+const DONOR_REVIEW_NOTIFICATION: Record<
+  'VERIFY' | 'REJECT' | 'REQUEST_INFO',
+  NotificationTypeValue
+> = {
+  VERIFY: 'DONOR_VERIFICATION_APPROVED',
+  REJECT: 'DONOR_VERIFICATION_REJECTED',
+  REQUEST_INFO: 'DONOR_ADDITIONAL_INFO_REQUIRED',
+}
+
+function ensureAdmin(
+  req: AuthRequest,
+  res: Response
+): boolean {
+  if (!req.user) {
+    res.status(401).json({ message: 'Authentication required' })
+    return false
+  }
+
+  if (req.user.role !== 'ADMIN') {
+    res.status(403).json({
+      message: 'Administrator access required',
+    })
+    return false
+  }
+
+  return true
+}
+
+export async function getDonorRegistrations(
+  req: AuthRequest,
+  res: Response
+) {
+  if (!ensureAdmin(req, res)) {
+    return
+  }
+
+  try {
+    const donors = await listDonorRegistrations()
+
+    return res.status(200).json({ donors })
+  } catch (error) {
+    console.error('List donor registrations error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to load donor registrations',
+    })
+  }
+}
+
+export async function reviewDonorRegistration(
+  req: AuthRequest,
+  res: Response
+) {
+  if (!ensureAdmin(req, res)) {
+    return
+  }
+
+  const donorProfileId = Number(req.params.id)
+
+  if (!Number.isInteger(donorProfileId) || donorProfileId <= 0) {
+    return res.status(400).json({
+      message: 'Invalid donor id',
+    })
+  }
+
+  const parsed = reviewDonorVerificationSchema.safeParse(
+    req.body
+  )
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message:
+        parsed.error.issues[0]?.message ??
+        'Invalid review information',
+    })
+  }
+
+  try {
+    const donor = await reviewDonorVerification(
+      donorProfileId,
+      parsed.data
+    )
+
+    if (!donor) {
+      return res.status(404).json({
+        message: 'Donor not found',
+      })
+    }
+
+    try {
+      await notifyUser(
+        donor.userId,
+        DONOR_REVIEW_NOTIFICATION[parsed.data.decision],
+        {
+          recipientName: donor.user.name,
+          notes: parsed.data.notes ?? undefined,
+          reason: parsed.data.notes ?? undefined,
+        },
+        {
+          relatedEntityType: 'DonorProfile',
+          relatedEntityId: donor.id,
+          dedupeKey: `donor:${donor.id}:review:${parsed.data.decision}:${donor.verifiedAt?.getTime() ?? Date.now()}`,
+        }
+      )
+    } catch (notificationError) {
+      console.error(
+        '[donor] review notification failed',
+        notificationError
+      )
+    }
+
+    return res.status(200).json({
+      message: 'Donor verification updated',
+      donor,
+    })
+  } catch (error) {
+    console.error('Review donor verification error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to update donor verification',
+    })
+  }
+}
 
 function ensureDonor(
   req: AuthRequest,

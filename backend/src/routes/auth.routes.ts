@@ -12,6 +12,7 @@ import { PostgresRateLimitStore } from '../lib/rate-limit-store'
 import { verifyMockFayda } from '../services/fayda.service'
 import { handleMedicalReportUpload } from '../middleware/upload.middleware'
 import { sendPasswordResetEmail } from '../services/email.service'
+import { queueNotification } from '../services/notification.service'
 import {
   authenticateToken,
   type AuthRequest,
@@ -519,6 +520,23 @@ router.post(
           return created
         }
       )
+
+      if (data.accountType === 'INDIVIDUAL') {
+        try {
+          await queueNotification({
+            userId: user.id,
+            type: 'DONOR_REGISTERED',
+            context: { recipientName: user.name },
+            relatedEntityType: 'DonorProfile',
+            relatedEntityId: user.donorProfile?.id,
+          })
+        } catch (notificationError) {
+          console.error(
+            '[auth] donor welcome notification failed',
+            notificationError
+          )
+        }
+      }
 
       return res.status(201).json({
         message:
