@@ -998,6 +998,58 @@ function Register() {
                     9999000000000004 &middot; Dawit Bekele &middot;
                     1995-12-03
                   </li>
+                  <li>
+                    9999000000000005 &middot; Tigist Haile &middot;
+                    1996-03-08
+                  </li>
+                  <li>
+                    9999000000000006 &middot; Yonas Gebre &middot;
+                    1993-07-19
+                  </li>
+                  <li>
+                    9999000000000007 &middot; Sara Mohammed &middot;
+                    2001-01-27
+                  </li>
+                  <li>
+                    9999000000000008 &middot; Bemnet Assefa &middot;
+                    1999-11-05
+                  </li>
+                  <li>
+                    9999000000000009 &middot; Rahel Girma &middot;
+                    1997-06-14
+                  </li>
+                  <li>
+                    9999000000000010 &middot; Abel Tadesse &middot;
+                    2000-09-30
+                  </li>
+                  <li>
+                    9999000000000011 &middot; Meron Desta &middot;
+                    1994-02-22
+                  </li>
+                  <li>
+                    9999000000000012 &middot; Kalkidan Wolde &middot;
+                    2003-08-17
+                  </li>
+                  <li>
+                    9999000000000013 &middot; Natnael Solomon &middot;
+                    1992-04-09
+                  </li>
+                  <li>
+                    9999000000000014 &middot; Eden Fikru &middot;
+                    2005-05-21
+                  </li>
+                  <li>
+                    9999000000000015 &middot; Samrawit Tesfaye &middot;
+                    1998-12-11
+                  </li>
+                  <li>
+                    9999000000000016 &middot; Yohannes Kibret &middot;
+                    1991-10-02
+                  </li>
+                  <li>
+                    9999000000000017 &middot; Helen Tesfaye &middot;
+                    2005-12-24
+                  </li>
                 </ul>
               </details>
             </div>

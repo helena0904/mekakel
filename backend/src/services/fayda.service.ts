@@ -41,6 +41,71 @@ export const MOCK_FAYDA_IDENTITIES: readonly MockFaydaIdentity[] = [
     fullName: 'Dawit Bekele',
     dateOfBirth: '1995-12-03',
   },
+  {
+    faydaId: '9999000000000005',
+    fullName: 'Tigist Haile',
+    dateOfBirth: '1996-03-08',
+  },
+  {
+    faydaId: '9999000000000006',
+    fullName: 'Yonas Gebre',
+    dateOfBirth: '1993-07-19',
+  },
+  {
+    faydaId: '9999000000000007',
+    fullName: 'Sara Mohammed',
+    dateOfBirth: '2001-01-27',
+  },
+  {
+    faydaId: '9999000000000008',
+    fullName: 'Bemnet Assefa',
+    dateOfBirth: '1999-11-05',
+  },
+  {
+    faydaId: '9999000000000009',
+    fullName: 'Rahel Girma',
+    dateOfBirth: '1997-06-14',
+  },
+  {
+    faydaId: '9999000000000010',
+    fullName: 'Abel Tadesse',
+    dateOfBirth: '2000-09-30',
+  },
+  {
+    faydaId: '9999000000000011',
+    fullName: 'Meron Desta',
+    dateOfBirth: '1994-02-22',
+  },
+  {
+    faydaId: '9999000000000012',
+    fullName: 'Kalkidan Wolde',
+    dateOfBirth: '2003-08-17',
+  },
+  {
+    faydaId: '9999000000000013',
+    fullName: 'Natnael Solomon',
+    dateOfBirth: '1992-04-09',
+  },
+  {
+    faydaId: '9999000000000014',
+    fullName: 'Eden Fikru',
+    dateOfBirth: '2005-05-21',
+  },
+  {
+    faydaId: '9999000000000015',
+    fullName: 'Samrawit Tesfaye',
+    dateOfBirth: '1998-12-11',
+  },
+  {
+    faydaId: '9999000000000016',
+    fullName: 'Yohannes Kibret',
+    dateOfBirth: '1991-10-02',
+  },
+  {
+    faydaId: '9999000000000017',
+    fullName: 'Helen Tesfaye',
+    dateOfBirth: '2005-12-24',
+  },
 ]
 
 function normalizeName(name: string): string {
