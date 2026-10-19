@@ -108,6 +108,7 @@ export interface DonorOverrides {
   verificationStatus?: string
   currentAvailability?: string
   consentToContact?: boolean
+  matchingOptOut?: boolean
   shareLocation?: boolean
   address?: string
   lastDonation?: Date | null
@@ -134,6 +135,7 @@ export async function addDonor(overrides: DonorOverrides = {}) {
       currentAvailability: (overrides.currentAvailability ??
         'AVAILABLE') as never,
       consentToContact: overrides.consentToContact ?? true,
+      matchingOptOut: overrides.matchingOptOut ?? false,
       shareLocation: overrides.shareLocation ?? true,
       address: overrides.address ?? 'Addis Ababa, Bole',
       lastDonation: overrides.lastDonation ?? null,

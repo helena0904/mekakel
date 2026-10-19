@@ -231,7 +231,7 @@ describe('reservation inventory updates', () => {
     expect(again.status).toBe(409)
   })
 
-  it('discards a cancelled unit that expired while reserved', async () => {
+  it('marks a cancelled unit that expired while reserved as EXPIRED', async () => {
     const hospital = await approvedHospital()
     const unit = await addUnit(hospital.hospitalProfileId)
 
@@ -255,7 +255,7 @@ describe('reservation inventory updates', () => {
       where: { id: unit.id },
     })
 
-    expect(stored?.status).toBe('DISCARDED')
+    expect(stored?.status).toBe('EXPIRED')
   })
 
   it('marks a consumed unit as used and blocks further transitions', async () => {

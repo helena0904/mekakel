@@ -26,6 +26,29 @@ async function donorActor() {
   return { user, token: tokenFor(user), profileId: profile.id }
 }
 
+async function waitForAudit(
+  action: string,
+  entityType: string
+) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const entry = await prisma.auditLog.findFirst({
+      where: {
+        action: action as never,
+        entityType,
+      },
+      orderBy: { id: 'desc' },
+    })
+
+    if (entry) {
+      return entry
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+
+  return null
+}
+
 function validProfileBody(
   overrides: Record<string, unknown> = {}
 ): Record<string, unknown> {
@@ -68,6 +91,31 @@ describe('donor profile management', () => {
 
     expect(stored?.bloodType).toBe('A_POSITIVE')
     expect(stored?.address).toBe('Addis Ababa, Kirkos')
+  })
+
+  it('audits consent and matching preference changes', async () => {
+    const { token, profileId } = await donorActor()
+
+    const res = await request(app)
+      .put('/api/donor/profile')
+      .set('Authorization', auth(token))
+      .send(
+        validProfileBody({
+          consentToContact: true,
+          shareLocation: true,
+          matchingOptOut: true,
+        })
+      )
+
+    expect(res.status).toBe(200)
+    expect(res.body.profile.matchingOptOut).toBe(true)
+
+    const audit = await waitForAudit(
+      'CONSENT_CHANGED',
+      'DonorProfile'
+    )
+
+    expect(audit?.entityId).toBe(profileId)
   })
 
   it('rejects an incomplete profile update', async () => {
@@ -225,6 +273,43 @@ describe('medical report privacy and verification', () => {
     })
 
     expect(stored?.verificationStatus).toBe('PENDING')
+
+    const filePath = path.join(
+      REPORT_DIR,
+      path.basename(upload.body.report.fileUrl)
+    )
+
+    if (existsSync(filePath)) {
+      unlinkSync(filePath)
+    }
+  })
+
+  it('audits access to a medical report file', async () => {
+    const donor = await donorActor()
+
+    const upload = await request(app)
+      .post('/api/donor/reports')
+      .set('Authorization', auth(donor.token))
+      .field('reportType', 'IMAGE')
+      .attach('medicalReport', PNG_BUFFER, {
+        filename: 'audit-report.png',
+        contentType: 'image/png',
+      })
+
+    expect(upload.status).toBe(201)
+
+    const own = await request(app)
+      .get(`/api/donor/reports/${upload.body.report.id}/file`)
+      .set('Authorization', auth(donor.token))
+
+    expect(own.status).toBe(200)
+
+    const audit = await waitForAudit(
+      'MEDICAL_REPORT_ACCESSED',
+      'MedicalReport'
+    )
+
+    expect(audit?.entityId).toBe(upload.body.report.id)
 
     const filePath = path.join(
       REPORT_DIR,

@@ -13,6 +13,7 @@ import {
   auth,
   requestBody,
 } from './helpers/actors'
+import { assignFefoRank } from '../src/services/fefo.service'
 
 const app = createApp()
 const DAY = 24 * 60 * 60 * 1000
@@ -253,7 +254,7 @@ describe('donor eligibility and availability', () => {
     expect(matches.donors[0].contactAllowed).toBe(true)
   })
 
-  it('hides clinical and identity data when consent is withheld', async () => {
+  it('excludes donors who have not consented to contact', async () => {
     const hospital = await approvedHospital()
 
     await addDonor({
@@ -266,12 +267,45 @@ describe('donor eligibility and availability', () => {
 
     const matches = await matchesFor(hospital.token, requestId)
 
+    expect(matches.donors).toHaveLength(0)
+  })
+
+  it('excludes donors who opted out of matching', async () => {
+    const hospital = await approvedHospital()
+
+    await addDonor({
+      bloodType: 'O_NEGATIVE',
+      matchingOptOut: true,
+    })
+
+    const requestId = await createRequest(hospital.token)
+
+    const matches = await matchesFor(hospital.token, requestId)
+
+    expect(matches.donors).toHaveLength(0)
+  })
+
+  it('withholds location but keeps consented contact details', async () => {
+    const hospital = await approvedHospital()
+
+    await addDonor({
+      bloodType: 'O_NEGATIVE',
+      consentToContact: true,
+      shareLocation: false,
+      address: 'Addis Ababa, Bole',
+    })
+
+    const requestId = await createRequest(hospital.token)
+
+    const matches = await matchesFor(hospital.token, requestId)
+
     const donor = matches.donors[0]
 
-    expect(donor.contactAllowed).toBe(false)
-    expect(donor.contactPhone).toBeNull()
+    expect(donor.contactAllowed).toBe(true)
+    expect(donor.contactPhone).toBeTruthy()
+    expect(donor.shareLocation).toBe(false)
     expect(donor.address).toBeNull()
-    expect(donor.displayName).toMatch(/^Verified donor #/)
+    expect(donor.approximateArea).toBeNull()
     expect(donor).not.toHaveProperty('weight')
     expect(donor).not.toHaveProperty('height')
     expect(donor).not.toHaveProperty('faydaId')
@@ -364,5 +398,72 @@ describe('matching summary', () => {
     expect(matches.disclaimer).toMatch(
       /not a clinical transfusion decision/i
     )
+  })
+})
+
+describe('FEFO ordering', () => {
+  const expiry = (day: number) => new Date(Date.UTC(2026, 0, day))
+  const collection = (day: number) => new Date(Date.UTC(2025, 11, day))
+
+  it('orders eligible units by earliest expiry', () => {
+    const ranked = assignFefoRank([
+      { id: 1, expiryDate: expiry(20) },
+      { id: 2, expiryDate: expiry(10) },
+      { id: 3, expiryDate: expiry(15) },
+    ])
+
+    expect(ranked.map((unit) => unit.id)).toEqual([2, 3, 1])
+  })
+
+  it('breaks equal expiry by oldest collection date', () => {
+    const ranked = assignFefoRank([
+      {
+        id: 1,
+        expiryDate: expiry(10),
+        collectionDate: collection(5),
+      },
+      {
+        id: 2,
+        expiryDate: expiry(10),
+        collectionDate: collection(1),
+      },
+    ])
+
+    expect(ranked.map((unit) => unit.id)).toEqual([2, 1])
+  })
+
+  it('then prefers the closest unit, the bag id and finally the id', () => {
+    const ranked = assignFefoRank([
+      {
+        id: 1,
+        expiryDate: expiry(10),
+        collectionDate: collection(1),
+        distanceKm: 12,
+        bagId: 'BAG-B',
+      },
+      {
+        id: 2,
+        expiryDate: expiry(10),
+        collectionDate: collection(1),
+        distanceKm: 3,
+        bagId: 'BAG-Z',
+      },
+      {
+        id: 3,
+        expiryDate: expiry(10),
+        collectionDate: collection(1),
+        distanceKm: 3,
+        bagId: 'BAG-A',
+      },
+      {
+        id: 4,
+        expiryDate: expiry(10),
+        collectionDate: collection(1),
+        distanceKm: null,
+        bagId: 'BAG-A',
+      },
+    ])
+
+    expect(ranked.map((unit) => unit.id)).toEqual([3, 2, 1, 4])
   })
 })
