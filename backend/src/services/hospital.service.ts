@@ -62,6 +62,17 @@ export interface HospitalAccess {
   hospitalProfileId: number
   role: HospitalStaffRoleValue
   userRole: string
+  hospitalStatus: string
+  isVerified: boolean
+}
+
+export function isHospitalApproved(
+  access: HospitalAccess
+): boolean {
+  return (
+    access.hospitalStatus === 'APPROVED' &&
+    access.isVerified
+  )
 }
 
 const staffUserSelect = {
@@ -84,12 +95,24 @@ export async function resolveHospitalAccess(
     select: {
       accountType: true,
       role: true,
-      hospitalProfile: { select: { id: true } },
+      hospitalProfile: {
+        select: {
+          id: true,
+          status: true,
+          isVerified: true,
+        },
+      },
       hospitalStaffMember: {
         select: {
           hospitalProfileId: true,
           staffRole: true,
           isActive: true,
+          hospitalProfile: {
+            select: {
+              status: true,
+              isVerified: true,
+            },
+          },
         },
       },
     },
@@ -104,6 +127,8 @@ export async function resolveHospitalAccess(
       hospitalProfileId: user.hospitalProfile.id,
       role: 'OWNER',
       userRole: user.role,
+      hospitalStatus: user.hospitalProfile.status,
+      isVerified: user.hospitalProfile.isVerified,
     }
   }
 
@@ -114,6 +139,8 @@ export async function resolveHospitalAccess(
       hospitalProfileId: member.hospitalProfileId,
       role: member.staffRole,
       userRole: user.role,
+      hospitalStatus: member.hospitalProfile.status,
+      isVerified: member.hospitalProfile.isVerified,
     }
   }
 

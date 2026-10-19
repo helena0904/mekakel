@@ -18,10 +18,25 @@ import type {
 } from '../validators/reservation.schema'
 import { notifyHospitalOwner } from './notification.service'
 import { recordAuditSafely } from './audit.service'
+import { computeEligibility } from './eligibility.service'
+import { getEligibilityConfig } from './settings.service'
 import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const reservationInclude = {
   bloodUnit: true,
+  donorProfile: {
+    select: {
+      id: true,
+      phone: true,
+      additionalPhone: true,
+      address: true,
+      bloodType: true,
+      consentToContact: true,
+      shareLocation: true,
+      verificationStatus: true,
+      user: { select: { name: true, isActive: true } },
+    },
+  },
   bloodRequest: {
     select: {
       id: true,
@@ -38,11 +53,19 @@ export type ReservationWithRelations =
     include: typeof reservationInclude
   }>
 
+type SerializedReservationDonor = Omit<
+  NonNullable<ReservationWithRelations['donorProfile']>,
+  'address'
+> & {
+  address: string | null
+}
+
 export type SerializedReservation = Omit<
   ReservationWithRelations,
-  'bloodUnit'
+  'bloodUnit' | 'donorProfile'
 > & {
-  bloodUnit: SerializedBloodUnit
+  bloodUnit: SerializedBloodUnit | null
+  donorProfile: SerializedReservationDonor | null
   isExpired: boolean
 }
 
@@ -50,10 +73,24 @@ export function serializeReservation(
   reservation: ReservationWithRelations,
   now: Date = new Date()
 ): SerializedReservation {
+  const donorProfile = reservation.donorProfile
+    ? {
+        ...reservation.donorProfile,
+        // Exact donor location is only released after the donor accepts.
+        address:
+          reservation.donorResponse === 'ACCEPTED'
+            ? reservation.donorProfile.address
+            : null,
+      }
+    : null
+
   return {
     ...reservation,
     isExpired: reservation.expiresAt.getTime() < now.getTime(),
-    bloodUnit: serializeUnit(reservation.bloodUnit, now),
+    bloodUnit: reservation.bloodUnit
+      ? serializeUnit(reservation.bloodUnit, now)
+      : null,
+    donorProfile,
   }
 }
 
@@ -68,9 +105,9 @@ async function notifyReservationOwner(
       type,
       {
         reservationId: reservation.id,
-        unitBagId: reservation.bloodUnit.bagId,
-        bloodType: reservation.bloodUnit.bloodType,
-        component: reservation.bloodUnit.component,
+        unitBagId: reservation.bloodUnit?.bagId,
+        bloodType: reservation.bloodUnit?.bloodType,
+        component: reservation.bloodUnit?.component,
         reason: reason ?? undefined,
       },
       {
@@ -117,13 +154,19 @@ export function resolveTargetUnitStatus(
     expiryDate: Date
   },
   now: Date
-): 'AVAILABLE' | 'DISCARDED' {
-  const stillEligible =
-    unit.screeningStatus === 'PASSED' &&
-    unit.confirmationStatus === 'CONFIRMED' &&
-    !isExpired(unit, now)
+): 'AVAILABLE' | 'EXPIRED' | 'DISCARDED' {
+  if (
+    unit.screeningStatus === 'FAILED' ||
+    unit.confirmationStatus === 'REJECTED'
+  ) {
+    return 'DISCARDED'
+  }
 
-  return stillEligible ? 'AVAILABLE' : 'DISCARDED'
+  if (isExpired(unit, now)) {
+    return 'EXPIRED'
+  }
+
+  return 'AVAILABLE'
 }
 
 export async function listReservations(
@@ -169,97 +212,158 @@ export async function createReservation(
     now.getTime() + ttlMinutes * 60 * 1000
   )
 
-  const reservation = await prisma.$transaction(
-    async (tx) => {
-      if (data.bloodRequestId) {
-        const bloodRequest = await tx.bloodRequest.findFirst({
-          where: {
-            id: data.bloodRequestId,
-            hospitalProfileId,
-          },
-          select: { id: true, status: true },
-        })
+  try {
+    const reservation = await prisma.$transaction(
+      async (tx) => {
+        if (data.bloodRequestId) {
+          const bloodRequest = await tx.bloodRequest.findFirst({
+            where: {
+              id: data.bloodRequestId,
+              hospitalProfileId,
+            },
+            select: { id: true, status: true },
+          })
 
-        if (!bloodRequest) {
-          throw new AppError('Blood request not found', 404)
+          if (!bloodRequest) {
+            throw new AppError('Blood request not found', 404)
+          }
+
+          if (bloodRequest.status !== 'OPEN') {
+            throw new AppError(
+              'Only open blood requests can be reserved against',
+              409
+            )
+          }
         }
 
-        if (bloodRequest.status !== 'OPEN') {
-          throw new AppError(
-            'Only open blood requests can be reserved against',
-            409
+        if (data.donorProfileId) {
+          const donor = await tx.donorProfile.findUnique({
+            where: { id: data.donorProfileId },
+            select: {
+              id: true,
+              dateOfBirth: true,
+              weight: true,
+              verificationStatus: true,
+              currentAvailability: true,
+              lastDonation: true,
+              donationIntervalDays: true,
+              consentToContact: true,
+              matchingOptOut: true,
+              user: { select: { isActive: true } },
+              donationHistory: {
+                select: { donatedAt: true },
+              },
+            },
+          })
+
+          if (!donor) {
+            throw new AppError('Donor not found', 404)
+          }
+
+          if (
+            !donor.user.isActive ||
+            !donor.consentToContact ||
+            donor.matchingOptOut ||
+            donor.currentAvailability !== 'AVAILABLE'
+          ) {
+            throw new AppError(
+              'This donor is not currently available for contact or matching',
+              409
+            )
+          }
+
+          const eligibility = computeEligibility(
+            donor,
+            donor.donationHistory.map(
+              (record) => record.donatedAt
+            ),
+            now,
+            await getEligibilityConfig()
           )
-        }
-      }
 
-      if (data.donorProfileId) {
-        const donor = await tx.donorProfile.findUnique({
-          where: { id: data.donorProfileId },
-          select: { id: true },
+          if (!eligibility.eligible) {
+            throw new AppError(
+              'The donor is not currently eligible to donate',
+              409
+            )
+          }
+        }
+
+        let unit: Prisma.BloodUnitGetPayload<{}> | null = null
+
+        if (data.bloodUnitId !== undefined) {
+          unit = await tx.bloodUnit.findFirst({
+            where: {
+              id: data.bloodUnitId,
+              hospitalProfileId,
+            },
+          })
+
+          if (!unit) {
+            throw new AppError('Blood unit not found', 404)
+          }
+
+          if (!isAvailableStock(unit, now)) {
+            throw new AppError(
+              'Only screened, confirmed and unexpired available units can be reserved',
+              409
+            )
+          }
+
+          // Conditional, atomic claim: only one concurrent caller can flip
+          // an available unit to RESERVED. Everyone else matches zero rows.
+          const claimed = await tx.bloodUnit.updateMany({
+            where: {
+              id: unit.id,
+              hospitalProfileId,
+              status: 'AVAILABLE',
+              screeningStatus: 'PASSED',
+              confirmationStatus: 'CONFIRMED',
+              expiryDate: { gt: now },
+            },
+            data: { status: 'RESERVED' },
+          })
+
+          if (claimed.count !== 1) {
+            throw new AppError(
+              'This blood unit is already reserved',
+              409
+            )
+          }
+        }
+
+        return tx.reservation.create({
+          data: {
+            bloodUnitId: unit?.id ?? null,
+            bloodRequestId: data.bloodRequestId ?? null,
+            hospitalProfileId,
+            donorProfileId: data.donorProfileId ?? null,
+            kind: unit ? 'BLOOD_UNIT' : 'DONOR',
+            status: 'ACTIVE',
+            donorResponse: 'PENDING',
+            expiresAt,
+            notes: data.notes || null,
+            createdByUserId: userId,
+          },
+          include: reservationInclude,
         })
-
-        if (!donor) {
-          throw new AppError('Donor not found', 404)
-        }
       }
+    )
 
-      const unit = await tx.bloodUnit.findFirst({
-        where: {
-          id: data.bloodUnitId,
-          hospitalProfileId,
-        },
-      })
-
-      if (!unit) {
-        throw new AppError('Blood unit not found', 404)
-      }
-
-      if (!isAvailableStock(unit, now)) {
-        throw new AppError(
-          'Only screened, confirmed and unexpired available units can be reserved',
-          409
-        )
-      }
-
-      // Conditional, atomic claim: only one concurrent caller can flip
-      // an available unit to RESERVED. Everyone else matches zero rows.
-      const claimed = await tx.bloodUnit.updateMany({
-        where: {
-          id: unit.id,
-          hospitalProfileId,
-          status: 'AVAILABLE',
-          screeningStatus: 'PASSED',
-          confirmationStatus: 'CONFIRMED',
-          expiryDate: { gt: now },
-        },
-        data: { status: 'RESERVED' },
-      })
-
-      if (claimed.count !== 1) {
-        throw new AppError(
-          'This blood unit is already reserved',
-          409
-        )
-      }
-
-      return tx.reservation.create({
-        data: {
-          bloodUnitId: unit.id,
-          bloodRequestId: data.bloodRequestId ?? null,
-          hospitalProfileId,
-          donorProfileId: data.donorProfileId ?? null,
-          status: 'ACTIVE',
-          donorResponse: 'PENDING',
-          expiresAt,
-          notes: data.notes || null,
-          createdByUserId: userId,
-        },
-        include: reservationInclude,
-      })
+    return serializeReservation(reservation)
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new AppError(
+        'This donor or blood unit already has an active reservation',
+        409
+      )
     }
-  )
 
-  return serializeReservation(reservation)
+    throw error
+  }
 }
 
 async function transitionToTerminal(
@@ -327,15 +431,20 @@ async function transitionToTerminal(
 
       // Quality/expiry controls override the earlier reservation:
       // the unit only returns to AVAILABLE when it is still eligible.
-      const targetUnitStatus = resolveTargetUnitStatus(
-        existing.bloodUnit,
-        now
-      )
+      if (existing.bloodUnitId && existing.bloodUnit) {
+        const targetUnitStatus = resolveTargetUnitStatus(
+          existing.bloodUnit,
+          now
+        )
 
-      await tx.bloodUnit.updateMany({
-        where: { id: existing.bloodUnitId, status: 'RESERVED' },
-        data: { status: targetUnitStatus },
-      })
+        await tx.bloodUnit.updateMany({
+          where: {
+            id: existing.bloodUnitId,
+            status: 'RESERVED',
+          },
+          data: { status: targetUnitStatus },
+        })
+      }
 
       return tx.reservation.findUniqueOrThrow({
         where: { id: reservationId },
@@ -418,7 +527,23 @@ export function confirmReservation(
         )
       }
 
-      if (!isAvailableStock({ ...existing.bloodUnit, status: 'AVAILABLE' }, now)) {
+      if (
+        existing.kind === 'DONOR' &&
+        existing.donorResponse !== 'ACCEPTED'
+      ) {
+        throw new AppError(
+          'The donor must accept before this reservation can be confirmed',
+          409
+        )
+      }
+
+      if (
+        existing.bloodUnit &&
+        !isAvailableStock(
+          { ...existing.bloodUnit, status: 'AVAILABLE' },
+          now
+        )
+      ) {
         throw new AppError(
           'The reserved unit is no longer eligible and cannot be confirmed',
           409
@@ -488,6 +613,13 @@ export function consumeReservation(
         )
       }
 
+      if (!existing.bloodUnitId) {
+        throw new AppError(
+          'This is a donor coordination reservation and has no blood unit to consume',
+          409
+        )
+      }
+
       const updated = await tx.reservation.updateMany({
         where: {
           id: reservationId,
@@ -507,13 +639,15 @@ export function consumeReservation(
         )
       }
 
-      await tx.bloodUnit.updateMany({
-        where: {
-          id: existing.bloodUnitId,
-          status: 'RESERVED',
-        },
-        data: { status: 'USED' },
-      })
+      if (existing.bloodUnitId) {
+        await tx.bloodUnit.updateMany({
+          where: {
+            id: existing.bloodUnitId,
+            status: 'RESERVED',
+          },
+          data: { status: 'USED' },
+        })
+      }
 
       return tx.reservation.findUniqueOrThrow({
         where: { id: reservationId },
@@ -538,16 +672,26 @@ export function recordDonorResponse(
   data: DonorResponseInput
 ): Promise<SerializedReservation> {
   const now = new Date()
+  const terminal =
+    data.donorResponse === 'DECLINED' ||
+    data.donorResponse === 'NO_SHOW'
 
   return prisma
     .$transaction(async (tx) => {
       const existing = await tx.reservation.findFirst({
         where: { id: reservationId, hospitalProfileId },
-        select: { id: true, status: true },
+        include: { bloodUnit: true },
       })
 
       if (!existing) {
         throw new AppError('Reservation not found', 404)
+      }
+
+      if (!existing.donorProfileId) {
+        throw new AppError(
+          'This reservation has no donor response to record',
+          409
+        )
       }
 
       if (
@@ -560,17 +704,72 @@ export function recordDonorResponse(
         )
       }
 
-      return tx.reservation.update({
-        where: { id: reservationId },
+      const updated = await tx.reservation.updateMany({
+        where: {
+          id: reservationId,
+          hospitalProfileId,
+          status: { in: ['ACTIVE', 'CONFIRMED'] },
+        },
         data: {
           donorResponse: data.donorResponse,
           donorRespondedAt: now,
+          status: terminal ? 'CANCELLED' : 'CONFIRMED',
+          confirmedAt: terminal ? undefined : now,
+          cancelledAt: terminal ? now : null,
+          reason: terminal
+            ? data.note ||
+              (data.donorResponse === 'DECLINED'
+                ? 'Donor declined the request'
+                : 'Donor did not show up')
+            : existing.reason,
           notes: data.note ? data.note : undefined,
         },
+      })
+
+      if (updated.count !== 1) {
+        throw new AppError(
+          'Reservation state changed, please retry',
+          409
+        )
+      }
+
+      if (
+        terminal &&
+        existing.bloodUnitId &&
+        existing.bloodUnit
+      ) {
+        await tx.bloodUnit.updateMany({
+          where: {
+            id: existing.bloodUnitId,
+            status: 'RESERVED',
+          },
+          data: {
+            status: resolveTargetUnitStatus(
+              existing.bloodUnit,
+              now
+            ),
+          },
+        })
+      }
+
+      return tx.reservation.findUniqueOrThrow({
+        where: { id: reservationId },
         include: reservationInclude,
       })
     })
-    .then((reservation) => serializeReservation(reservation))
+    .then(async (reservation) => {
+      const serialized = serializeReservation(reservation)
+
+      await notifyReservationOwner(
+        serialized,
+        terminal
+          ? 'RESERVATION_CANCELLED'
+          : 'RESERVATION_CONFIRMED',
+        terminal ? serialized.reason : null
+      )
+
+      return serialized
+    })
 }
 
 export async function expireDueReservations(
@@ -581,9 +780,21 @@ export async function expireDueReservations(
       status: { in: ['ACTIVE', 'CONFIRMED'] },
       OR: [
         { expiresAt: { lte: now } },
-        { bloodUnit: { expiryDate: { lte: now } } },
-        { bloodUnit: { screeningStatus: 'FAILED' } },
-        { bloodUnit: { confirmationStatus: 'REJECTED' } },
+        {
+          bloodUnit: {
+            is: { expiryDate: { lte: now } },
+          },
+        },
+        {
+          bloodUnit: {
+            is: { screeningStatus: 'FAILED' },
+          },
+        },
+        {
+          bloodUnit: {
+            is: { confirmationStatus: 'REJECTED' },
+          },
+        },
       ],
     },
     select: { id: true },

@@ -26,39 +26,51 @@ export type ReservationStatusValue =
 export type DonorResponseStatusValue =
   (typeof DONOR_RESPONSE_STATUSES)[number]
 
-export const createReservationSchema = z.object({
-  bloodUnitId: z.coerce
-    .number()
-    .int()
-    .positive('A valid blood unit is required'),
+export const createReservationSchema = z
+  .object({
+    bloodUnitId: z.coerce
+      .number()
+      .int()
+      .positive('A valid blood unit is required')
+      .optional(),
 
-  bloodRequestId: z.coerce
-    .number()
-    .int()
-    .positive()
-    .optional(),
+    bloodRequestId: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
 
-  donorProfileId: z.coerce
-    .number()
-    .int()
-    .positive()
-    .optional(),
+    donorProfileId: z.coerce
+      .number()
+      .int()
+      .positive()
+      .optional(),
 
-  expiresInMinutes: z.coerce
-    .number()
-    .int()
-    .min(
-      MIN_RESERVATION_TTL_MINUTES,
-      `Reservation must last at least ${MIN_RESERVATION_TTL_MINUTES} minutes`
-    )
-    .max(
-      MAX_RESERVATION_TTL_MINUTES,
-      `Reservation cannot last more than ${MAX_RESERVATION_TTL_MINUTES} minutes`
-    )
-    .optional(),
+    expiresInMinutes: z.coerce
+      .number()
+      .int()
+      .min(
+        MIN_RESERVATION_TTL_MINUTES,
+        `Reservation must last at least ${MIN_RESERVATION_TTL_MINUTES} minutes`
+      )
+      .max(
+        MAX_RESERVATION_TTL_MINUTES,
+        `Reservation cannot last more than ${MAX_RESERVATION_TTL_MINUTES} minutes`
+      )
+      .optional(),
 
-  notes: z.string().trim().max(500).optional(),
-})
+    notes: z.string().trim().max(500).optional(),
+  })
+  .refine(
+    (value) =>
+      value.bloodUnitId !== undefined ||
+      value.donorProfileId !== undefined,
+    {
+      message:
+        'Select a blood unit or a donor for this reservation',
+      path: ['bloodUnitId'],
+    }
+  )
 
 export const listReservationsQuerySchema = z.object({
   status: z.enum(RESERVATION_STATUSES).optional(),

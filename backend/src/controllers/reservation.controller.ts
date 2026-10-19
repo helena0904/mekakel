@@ -7,7 +7,10 @@ import {
   recordAuditSafely,
   type AuditActionValue,
 } from '../services/audit.service'
-import { resolveHospitalAccess } from '../services/hospital.service'
+import {
+  isHospitalApproved,
+  resolveHospitalAccess,
+} from '../services/hospital.service'
 import type {
   HospitalAccess,
   HospitalStaffRoleValue,
@@ -49,6 +52,14 @@ async function ensureHospital(
 
   if (!access) {
     res.status(403).json({ message: 'Hospital access required' })
+    return null
+  }
+
+  if (!isHospitalApproved(access)) {
+    res.status(403).json({
+      message:
+        'Hospital approval is required before managing reservations',
+    })
     return null
   }
 
@@ -222,18 +233,23 @@ export async function postReservation(
       req,
       'RESERVATION_CREATED',
       reservation,
-      'Blood unit reserved'
+      reservation.kind === 'DONOR'
+        ? 'Donor coordination reservation created'
+        : 'Blood unit reserved'
     )
 
     return res.status(201).json({
-      message: 'Blood unit reserved',
+      message:
+        reservation.kind === 'DONOR'
+          ? 'Donor coordination started'
+          : 'Blood unit reserved',
       reservation,
     })
   } catch (error) {
     return respondError(
       res,
       error,
-      'Unable to reserve the blood unit'
+      'Unable to create the reservation'
     )
   }
 }
@@ -464,6 +480,13 @@ export async function patchDonorResponse(
       access.hospitalProfileId,
       reservationId,
       parsed.data
+    )
+
+    auditReservation(
+      req,
+      'DONOR_RESPONSE_RECORDED',
+      reservation,
+      `Donor response recorded as ${parsed.data.donorResponse.toLowerCase()}`
     )
 
     return res.status(200).json({
