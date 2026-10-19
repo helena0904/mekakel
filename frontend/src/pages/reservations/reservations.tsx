@@ -164,8 +164,10 @@ function ReservationsPage() {
       return
     }
 
-    if (!bloodUnitId) {
-      setError('Select a blood unit to reserve')
+    if (!bloodUnitId && !donorProfileId) {
+      setError(
+        'Select a blood unit or enter a donor profile to coordinate'
+      )
       return
     }
 
@@ -175,7 +177,9 @@ function ReservationsPage() {
 
     try {
       await createReservation({
-        bloodUnitId: Number(bloodUnitId),
+        bloodUnitId: bloodUnitId
+          ? Number(bloodUnitId)
+          : undefined,
         bloodRequestId: bloodRequestId
           ? Number(bloodRequestId)
           : undefined,
@@ -188,7 +192,11 @@ function ReservationsPage() {
         notes: notes.trim() || undefined,
       })
 
-      setSuccess('Blood unit reserved.')
+      setSuccess(
+        bloodUnitId
+          ? 'Blood unit reserved.'
+          : 'Donor coordination started.'
+      )
       setBloodUnitId('')
       setBloodRequestId('')
       setDonorProfileId('')
@@ -269,6 +277,7 @@ function ReservationsPage() {
         )
       )
       setSuccess('Donor response recorded.')
+      await reloadFormOptions()
     } catch (err) {
       setError(
         err instanceof Error
@@ -320,12 +329,18 @@ function ReservationsPage() {
             onSubmit={handleCreate}
           >
             <section className="form-section">
-              <h2>Reserve a blood unit</h2>
+              <h2>Start a reservation</h2>
+
+              <p className="section-description">
+                Select an available unit, a donor profile, or
+                both. Donor-only reservations track the donor's
+                response without holding a specific unit.
+              </p>
 
               <div className="form-row">
                 <div className="form-group">
                   <label htmlFor="reservation-unit">
-                    Blood unit
+                    Blood unit (optional)
                   </label>
                   <select
                     id="reservation-unit"
@@ -333,11 +348,10 @@ function ReservationsPage() {
                     onChange={(event) =>
                       setBloodUnitId(event.target.value)
                     }
-                    required
                     disabled={saving}
                   >
                     <option value="">
-                      Select an available unit
+                      No specific unit (donor only)
                     </option>
                     {units.map((unit) => (
                       <option key={unit.id} value={unit.id}>
@@ -391,7 +405,7 @@ function ReservationsPage() {
                       setDonorProfileId(event.target.value)
                     }
                     disabled={saving}
-                    placeholder="Track a donor response"
+                    placeholder="Required for donor-only coordination"
                   />
                 </div>
 
@@ -433,7 +447,7 @@ function ReservationsPage() {
                 className="register-button"
                 disabled={saving}
               >
-                {saving ? 'Reserving…' : 'Reserve unit'}
+                {saving ? 'Saving…' : 'Create reservation'}
               </button>
             </section>
           </form>
@@ -500,21 +514,28 @@ function ReservationsPage() {
                     return (
                       <tr key={reservation.id}>
                         <td>
-                          {reservation.bloodUnit.bagId}
+                          {reservation.bloodUnit
+                            ? reservation.bloodUnit.bagId
+                            : 'Donor coordination'}
                         </td>
                         <td>
-                          {
-                            BLOOD_TYPE_LABELS[
-                              reservation.bloodUnit.bloodType
-                            ]
-                          }
+                          {reservation.bloodUnit
+                            ? BLOOD_TYPE_LABELS[
+                                reservation.bloodUnit.bloodType
+                              ]
+                            : reservation.donorProfile?.bloodType
+                              ? BLOOD_TYPE_LABELS[
+                                  reservation.donorProfile
+                                    .bloodType
+                                ]
+                              : '—'}
                         </td>
                         <td>
-                          {
-                            BLOOD_COMPONENT_LABELS[
-                              reservation.bloodUnit.component
-                            ]
-                          }
+                          {reservation.bloodUnit
+                            ? BLOOD_COMPONENT_LABELS[
+                                reservation.bloodUnit.component
+                              ]
+                            : '—'}
                         </td>
                         <td>
                           <span
@@ -531,8 +552,15 @@ function ReservationsPage() {
                         </td>
                         <td>
                           {reservation.donorProfileId ? (
-                            <select
-                              value={reservation.donorResponse}
+                            <>
+                              <span className="cell-note">
+                                {reservation.donorProfile
+                                  ? reservation.donorProfile.user
+                                      .name
+                                  : `Donor #${reservation.donorProfileId}`}
+                              </span>
+                              <select
+                                value={reservation.donorResponse}
                               onChange={(event) =>
                                 handleDonorResponse(
                                   reservation,
@@ -543,30 +571,31 @@ function ReservationsPage() {
                                   >
                                 )
                               }
-                              disabled={
-                                !open || busyId !== null
-                              }
-                            >
-                              <option value="PENDING">
-                                {
-                                  DONOR_RESPONSE_STATUS_LABELS.PENDING
+                                disabled={
+                                  !open || busyId !== null
                                 }
-                              </option>
-                              {DONOR_RESPONSE_OPTIONS.map(
-                                (option) => (
-                                  <option
-                                    key={option}
-                                    value={option}
-                                  >
-                                    {
-                                      DONOR_RESPONSE_STATUS_LABELS[
-                                        option
-                                      ]
-                                    }
-                                  </option>
-                                )
-                              )}
-                            </select>
+                              >
+                                <option value="PENDING">
+                                  {
+                                    DONOR_RESPONSE_STATUS_LABELS.PENDING
+                                  }
+                                </option>
+                                {DONOR_RESPONSE_OPTIONS.map(
+                                  (option) => (
+                                    <option
+                                      key={option}
+                                      value={option}
+                                    >
+                                      {
+                                        DONOR_RESPONSE_STATUS_LABELS[
+                                          option
+                                        ]
+                                      }
+                                    </option>
+                                  )
+                                )}
+                              </select>
+                            </>
                           ) : (
                             '—'
                           )}
@@ -596,23 +625,25 @@ function ReservationsPage() {
                                 </button>
                               )}
 
-                              <button
-                                type="button"
-                                className="secondary-button"
-                                disabled={busyId !== null}
-                                onClick={() =>
-                                  runAction(
-                                    reservation,
-                                    () =>
-                                      consumeReservation(
-                                        reservation.id
-                                      ),
-                                    'Reserved unit marked as used.'
-                                  )
-                                }
-                              >
-                                Use
-                              </button>
+                              {reservation.bloodUnit && (
+                                <button
+                                  type="button"
+                                  className="secondary-button"
+                                  disabled={busyId !== null}
+                                  onClick={() =>
+                                    runAction(
+                                      reservation,
+                                      () =>
+                                        consumeReservation(
+                                          reservation.id
+                                        ),
+                                      'Reserved unit marked as used.'
+                                    )
+                                  }
+                                >
+                                  Use
+                                </button>
+                              )}
 
                               <button
                                 type="button"

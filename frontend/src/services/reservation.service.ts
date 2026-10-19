@@ -29,12 +29,27 @@ export interface ReservationBloodRequest {
   status: BloodRequestStatusValue
 }
 
+export type ReservationKindValue = 'BLOOD_UNIT' | 'DONOR'
+
+export interface ReservationDonor {
+  id: number
+  phone: string
+  additionalPhone: string | null
+  address: string | null
+  bloodType: BloodType | null
+  consentToContact: boolean
+  shareLocation: boolean
+  verificationStatus: string
+  user: { name: string; isActive: boolean }
+}
+
 export interface Reservation {
   id: number
-  bloodUnitId: number
+  bloodUnitId: number | null
   bloodRequestId: number | null
   hospitalProfileId: number
   donorProfileId: number | null
+  kind: ReservationKindValue
   status: ReservationStatusValue
   donorResponse: DonorResponseStatusValue
   donorRespondedAt: string | null
@@ -49,12 +64,13 @@ export interface Reservation {
   createdAt: string
   updatedAt: string
   isExpired: boolean
-  bloodUnit: BloodUnit
+  bloodUnit: BloodUnit | null
   bloodRequest: ReservationBloodRequest | null
+  donorProfile: ReservationDonor | null
 }
 
 export interface ReservationInput {
-  bloodUnitId: number
+  bloodUnitId?: number
   bloodRequestId?: number
   donorProfileId?: number
   expiresInMinutes?: number

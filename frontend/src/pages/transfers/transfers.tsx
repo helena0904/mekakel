@@ -79,7 +79,11 @@ function TransfersPage() {
       ])
 
     setUnits(loadedUnits)
-    setReservations(activeReservations)
+    setReservations(
+      activeReservations.filter(
+        (reservation) => reservation.bloodUnit !== null
+      )
+    )
     setDestinations(loadedDestinations)
   }
 
@@ -133,7 +137,11 @@ function TransfersPage() {
 
         setTransfers(loadedTransfers)
         setUnits(loadedUnits)
-        setReservations(activeReservations)
+        setReservations(
+          activeReservations.filter(
+            (reservation) => reservation.bloodUnit !== null
+          )
+        )
         setDestinations(loadedDestinations)
       } catch (err) {
         if (!cancelled) {
@@ -325,7 +333,7 @@ function TransfersPage() {
                       value={reservation.id}
                     >
                       #{reservation.id} ·{' '}
-                      {reservation.bloodUnit.bagId}
+                      {reservation.bloodUnit?.bagId ?? '—'}
                     </option>
                   ))}
                 </select>

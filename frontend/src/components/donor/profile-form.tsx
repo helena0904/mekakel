@@ -45,6 +45,9 @@ function ProfileForm({
   const [shareLocation, setShareLocation] = useState(
     profile.shareLocation
   )
+  const [matchingOptOut, setMatchingOptOut] = useState(
+    profile.matchingOptOut
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -71,6 +74,7 @@ function ProfileForm({
         bloodType: bloodType === '' ? null : bloodType,
         consentToContact,
         shareLocation,
+        matchingOptOut,
       }
 
       const trimmedAdditional = additionalPhone.trim()
@@ -298,6 +302,21 @@ function ProfileForm({
           <span>
             I allow my approximate location to be used when
             matching nearby requests.
+          </span>
+        </label>
+
+        <label className="warning-checkbox consent-checkbox">
+          <input
+            type="checkbox"
+            checked={matchingOptOut}
+            onChange={(event) =>
+              setMatchingOptOut(event.target.checked)
+            }
+            disabled={saving}
+          />
+          <span>
+            Do not include me in donor matching. I can still
+            update my profile and availability.
           </span>
         </label>
       </section>

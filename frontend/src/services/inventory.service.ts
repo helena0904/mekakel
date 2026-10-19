@@ -4,6 +4,7 @@ import type { BloodType } from './donor.service'
 export type { BloodType }
 
 export type ScreeningStatusValue =
+  | 'NOT_TESTED'
   | 'PENDING'
   | 'PASSED'
   | 'FAILED'
@@ -14,9 +15,12 @@ export type ConfirmationStatusValue =
   | 'REJECTED'
 
 export type BloodUnitStatusValue =
+  | 'PENDING'
   | 'AVAILABLE'
   | 'RESERVED'
+  | 'TRANSFERRED'
   | 'USED'
+  | 'EXPIRED'
   | 'DISCARDED'
 
 export type ExpiryAlertStatus = 'EXPIRED' | 'EXPIRING_SOON'
@@ -41,6 +45,7 @@ export interface BloodUnit {
   status: BloodUnitStatusValue
   storageLocation: string | null
   storageNotes: string | null
+  screenedBy: number | null
   screenedAt: string | null
   confirmedAt: string | null
   createdAt: string
@@ -188,6 +193,7 @@ export const SCREENING_STATUS_LABELS: Record<
   ScreeningStatusValue,
   string
 > = {
+  NOT_TESTED: 'Not tested',
   PENDING: 'Not screened',
   PASSED: 'Screened',
   FAILED: 'Screening failed',
@@ -206,9 +212,12 @@ export const BLOOD_UNIT_STATUS_LABELS: Record<
   BloodUnitStatusValue,
   string
 > = {
+  PENDING: 'Pending',
   AVAILABLE: 'Available',
   RESERVED: 'Reserved',
+  TRANSFERRED: 'In transfer',
   USED: 'Used',
+  EXPIRED: 'Expired',
   DISCARDED: 'Discarded',
 }
 
