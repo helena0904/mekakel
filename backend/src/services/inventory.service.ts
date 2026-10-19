@@ -1,5 +1,6 @@
-import { Prisma } from '@prisma/client'
+import { Prisma, type BloodUnitStatus } from '@prisma/client'
 
+import { AppError } from '../lib/errors'
 import prisma from '../lib/prisma'
 import { BLOOD_TYPES } from '../validators/donor.schema'
 import type {
@@ -23,6 +24,7 @@ export interface SerializableBloodUnit {
   status: string
   storageLocation: string | null
   storageNotes: string | null
+  screenedBy: number | null
   screenedAt: Date | null
   confirmedAt: Date | null
   createdByUserId: number | null
@@ -43,22 +45,54 @@ export function isExpired(
   return unit.expiryDate.getTime() < now.getTime()
 }
 
-export function isAvailableStock(
-  unit: Pick<
-    SerializableBloodUnit,
-    | 'status'
-    | 'screeningStatus'
-    | 'confirmationStatus'
-    | 'expiryDate'
-  >,
+type StockFields = Pick<
+  SerializableBloodUnit,
+  'screeningStatus' | 'confirmationStatus' | 'expiryDate'
+>
+
+export function isEligibleStock(
+  unit: StockFields,
   now: Date = new Date()
 ): boolean {
   return (
-    unit.status === 'AVAILABLE' &&
     unit.screeningStatus === 'PASSED' &&
     unit.confirmationStatus === 'CONFIRMED' &&
     !isExpired(unit, now)
   )
+}
+
+export function isAvailableStock(
+  unit: Pick<SerializableBloodUnit, 'status'> & StockFields,
+  now: Date = new Date()
+): boolean {
+  return unit.status === 'AVAILABLE' && isEligibleStock(unit, now)
+}
+
+export function deriveUnitStatus(
+  unit: StockFields,
+  now: Date = new Date(),
+  currentStatus?: string
+): BloodUnitStatus {
+  if (currentStatus === 'USED' || currentStatus === 'DISCARDED') {
+    return currentStatus
+  }
+
+  if (
+    unit.screeningStatus === 'FAILED' ||
+    unit.confirmationStatus === 'REJECTED'
+  ) {
+    return 'DISCARDED'
+  }
+
+  if (isExpired(unit, now)) {
+    return 'EXPIRED'
+  }
+
+  if (isEligibleStock(unit, now)) {
+    return 'AVAILABLE'
+  }
+
+  return 'PENDING'
 }
 
 export function serializeUnit(
@@ -154,14 +188,24 @@ export function findUnit(
   })
 }
 
+const SCREENED_STATUSES = ['PASSED', 'FAILED']
+
+const AUTOMATED_STATUSES = [
+  'RESERVED',
+  'TRANSFERRED',
+  'EXPIRED',
+]
+
 export function createUnit(
   hospitalProfileId: number,
   userId: number,
   data: CreateBloodUnitInput
 ) {
+  const now = new Date()
   const screeningStatus = data.screeningStatus ?? 'PENDING'
   const confirmationStatus =
     data.confirmationStatus ?? 'PENDING'
+  const expiryDate = new Date(data.expiryDate)
 
   return prisma.bloodUnit.create({
     data: {
@@ -170,33 +214,135 @@ export function createUnit(
       bloodType: data.bloodType,
       component: data.component ?? 'RED_CELLS',
       collectionDate: new Date(data.collectionDate),
-      expiryDate: new Date(data.expiryDate),
+      expiryDate,
       screeningStatus,
       confirmationStatus,
-      status: data.status ?? 'AVAILABLE',
+      status: deriveUnitStatus(
+        {
+          screeningStatus,
+          confirmationStatus,
+          expiryDate,
+        },
+        now
+      ),
       storageLocation: data.storageLocation || null,
       storageNotes: data.storageNotes || null,
-      screenedAt:
-        screeningStatus === 'PASSED' ||
-        screeningStatus === 'FAILED'
-          ? new Date()
-          : null,
+      screenedBy: SCREENED_STATUSES.includes(screeningStatus)
+        ? userId
+        : null,
+      screenedAt: SCREENED_STATUSES.includes(screeningStatus)
+        ? now
+        : null,
       confirmedAt:
         confirmationStatus === 'CONFIRMED' ||
         confirmationStatus === 'REJECTED'
-          ? new Date()
+          ? now
           : null,
       createdByUserId: userId,
     },
   })
 }
 
-export function updateUnit(
+async function assertStockEditable(unitId: number) {
+  const [reservation, transfer] = await Promise.all([
+    prisma.reservation.findFirst({
+      where: {
+        bloodUnitId: unitId,
+        status: { in: ['ACTIVE', 'CONFIRMED'] },
+      },
+      select: { id: true },
+    }),
+    prisma.transfer.findFirst({
+      where: {
+        bloodUnitId: unitId,
+        status: {
+          in: [
+            'REQUESTED',
+            'APPROVED',
+            'DISPATCHED',
+            'RECEIVED',
+          ],
+        },
+      },
+      select: { id: true },
+    }),
+  ])
+
+  if (reservation) {
+    throw new AppError(
+      'Release the active reservation before changing this unit',
+      409
+    )
+  }
+
+  if (transfer) {
+    throw new AppError(
+      'Complete or cancel the active transfer before changing this unit',
+      409
+    )
+  }
+}
+
+export async function updateUnit(
   unitId: number,
-  data: UpdateBloodUnitInput
+  data: UpdateBloodUnitInput,
+  userId?: number
 ) {
-  const screeningStatus = data.screeningStatus
-  const confirmationStatus = data.confirmationStatus
+  const existing = await prisma.bloodUnit.findUnique({
+    where: { id: unitId },
+  })
+
+  if (!existing) {
+    throw new AppError('Blood unit not found', 404)
+  }
+
+  const stockFieldsChanged = [
+    data.screeningStatus,
+    data.confirmationStatus,
+    data.expiryDate,
+    data.status,
+  ].some((value) => value !== undefined)
+
+  if (stockFieldsChanged) {
+    await assertStockEditable(unitId)
+  }
+
+  if (
+    data.status &&
+    AUTOMATED_STATUSES.includes(data.status)
+  ) {
+    throw new AppError(
+      'This status is managed automatically by reservations, transfers and expiry checks',
+      400
+    )
+  }
+
+  const now = new Date()
+  const screeningStatus =
+    data.screeningStatus ?? existing.screeningStatus
+  const confirmationStatus =
+    data.confirmationStatus ?? existing.confirmationStatus
+  const expiryDate = data.expiryDate
+    ? new Date(data.expiryDate)
+    : existing.expiryDate
+
+  let status: BloodUnitStatus = deriveUnitStatus(
+    { screeningStatus, confirmationStatus, expiryDate },
+    now,
+    existing.status
+  )
+
+  if (data.status === 'USED' || data.status === 'DISCARDED') {
+    status = data.status
+  }
+
+  const screeningChanged =
+    data.screeningStatus !== undefined &&
+    data.screeningStatus !== existing.screeningStatus
+
+  const confirmationChanged =
+    data.confirmationStatus !== undefined &&
+    data.confirmationStatus !== existing.confirmationStatus
 
   return prisma.bloodUnit.update({
     where: { id: unitId },
@@ -208,11 +354,11 @@ export function updateUnit(
         ? new Date(data.collectionDate)
         : undefined,
       expiryDate: data.expiryDate
-        ? new Date(data.expiryDate)
+        ? expiryDate
         : undefined,
-      screeningStatus,
-      confirmationStatus,
-      status: data.status,
+      screeningStatus: data.screeningStatus,
+      confirmationStatus: data.confirmationStatus,
+      status,
       storageLocation:
         data.storageLocation === undefined
           ? undefined
@@ -221,26 +367,43 @@ export function updateUnit(
         data.storageNotes === undefined
           ? undefined
           : data.storageNotes || null,
-      screenedAt:
-        screeningStatus === 'PASSED' ||
-        screeningStatus === 'FAILED'
-          ? new Date()
-          : screeningStatus === 'PENDING'
-            ? null
-            : undefined,
-      confirmedAt:
-        confirmationStatus === 'CONFIRMED' ||
-        confirmationStatus === 'REJECTED'
-          ? new Date()
-          : confirmationStatus === 'PENDING'
-            ? null
-            : undefined,
+      screenedBy:
+        screeningChanged && userId
+          ? SCREENED_STATUSES.includes(screeningStatus)
+            ? userId
+            : null
+          : undefined,
+      screenedAt: screeningChanged
+        ? SCREENED_STATUSES.includes(screeningStatus)
+          ? now
+          : null
+        : undefined,
+      confirmedAt: confirmationChanged
+        ? confirmationStatus === 'CONFIRMED' ||
+          confirmationStatus === 'REJECTED'
+          ? now
+          : null
+        : undefined,
     },
   })
 }
 
 export function deleteUnit(unitId: number) {
   return prisma.bloodUnit.delete({ where: { id: unitId } })
+}
+
+export async function expireOverdueUnits(now: Date = new Date()) {
+  const result = await prisma.bloodUnit.updateMany({
+    where: {
+      status: {
+        in: ['PENDING', 'AVAILABLE', 'RESERVED', 'TRANSFERRED'],
+      },
+      expiryDate: { lt: now },
+    },
+    data: { status: 'EXPIRED' },
+  })
+
+  return result.count
 }
 
 interface TypeSummary {
@@ -288,7 +451,10 @@ export async function getSummary(hospitalProfileId: number) {
 
     summary.totalUnits += 1
 
-    if (unit.status === 'AVAILABLE' && isExpired(unit, now)) {
+    if (
+      unit.status === 'EXPIRED' ||
+      (unit.status === 'AVAILABLE' && isExpired(unit, now))
+    ) {
       summary.expiredUnits += 1
     }
 
@@ -343,7 +509,9 @@ export async function getExpiryAlerts(
   const units = await prisma.bloodUnit.findMany({
     where: {
       hospitalProfileId,
-      status: { notIn: ['USED', 'DISCARDED'] },
+      status: {
+        notIn: ['USED', 'DISCARDED', 'TRANSFERRED'],
+      },
       expiryDate: {
         lte: new Date(now.getTime() + withinDays * DAY_MS),
       },

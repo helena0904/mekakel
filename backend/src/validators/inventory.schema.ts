@@ -6,6 +6,7 @@ import {
 } from './donor.schema'
 
 export const SCREENING_STATUSES = [
+  'NOT_TESTED',
   'PENDING',
   'PASSED',
   'FAILED',
@@ -18,9 +19,12 @@ export const CONFIRMATION_STATUSES = [
 ] as const
 
 export const BLOOD_UNIT_STATUSES = [
+  'PENDING',
   'AVAILABLE',
   'RESERVED',
+  'TRANSFERRED',
   'USED',
+  'EXPIRED',
   'DISCARDED',
 ] as const
 

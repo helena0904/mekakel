@@ -2,6 +2,7 @@ import type { Response } from 'express'
 import { Prisma } from '@prisma/client'
 
 import type { AuthRequest } from '../middleware/auth.middleware'
+import { isAppError } from '../lib/errors'
 import {
   createUnit,
   deleteUnit,
@@ -12,7 +13,10 @@ import {
   serializeUnit,
   updateUnit,
 } from '../services/inventory.service'
-import { resolveHospitalAccess } from '../services/hospital.service'
+import {
+  isHospitalApproved,
+  resolveHospitalAccess,
+} from '../services/hospital.service'
 import type {
   HospitalAccess,
   HospitalStaffRoleValue,
@@ -48,6 +52,14 @@ async function ensureHospital(
 
   if (!access) {
     res.status(403).json({ message: 'Hospital access required' })
+    return null
+  }
+
+  if (!isHospitalApproved(access)) {
+    res.status(403).json({
+      message:
+        'Hospital approval is required before managing inventory',
+    })
     return null
   }
 
@@ -218,6 +230,12 @@ export async function postUnit(
       unit: serializeUnit(unit),
     })
   } catch (error) {
+    if (isAppError(error)) {
+      return res
+        .status(error.statusCode)
+        .json({ message: error.message })
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
@@ -296,7 +314,11 @@ export async function putUnit(
       })
     }
 
-    const unit = await updateUnit(unitId, parsed.data)
+    const unit = await updateUnit(
+      unitId,
+      parsed.data,
+      req.user!.userId
+    )
 
     auditInventory(
       req,
@@ -310,6 +332,12 @@ export async function putUnit(
       unit: serializeUnit(unit),
     })
   } catch (error) {
+    if (isAppError(error)) {
+      return res
+        .status(error.statusCode)
+        .json({ message: error.message })
+    }
+
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === 'P2002'
