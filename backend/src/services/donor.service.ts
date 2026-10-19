@@ -48,6 +48,7 @@ export async function updateDonorProfile(
       donationIntervalDays: data.donationIntervalDays,
       consentToContact: data.consentToContact,
       shareLocation: data.shareLocation,
+      matchingOptOut: data.matchingOptOut,
     },
     include: profileInclude,
   })

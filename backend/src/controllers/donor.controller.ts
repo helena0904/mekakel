@@ -15,7 +15,10 @@ import {
   decideDonorVerification,
   listVerificationQueue,
 } from '../services/medical-verification.service'
-import { actorFromRequest } from '../services/audit.service'
+import {
+  actorFromRequest,
+  recordAuditSafely,
+} from '../services/audit.service'
 import { computeEligibility } from '../services/eligibility.service'
 import { getEligibilityConfig } from '../services/settings.service'
 import type { AuthRequest } from '../middleware/auth.middleware'
@@ -260,6 +263,26 @@ export async function putProfile(
       userId,
       parsed.data
     )
+
+    const consentChanged =
+      (parsed.data.consentToContact !== undefined &&
+        parsed.data.consentToContact !==
+          existing.consentToContact) ||
+      (parsed.data.shareLocation !== undefined &&
+        parsed.data.shareLocation !== existing.shareLocation) ||
+      (parsed.data.matchingOptOut !== undefined &&
+        parsed.data.matchingOptOut !== existing.matchingOptOut)
+
+    if (consentChanged) {
+      void recordAuditSafely({
+        ...actorFromRequest(req),
+        action: 'CONSENT_CHANGED',
+        entityType: 'DonorProfile',
+        entityId: existing.id,
+        summary:
+          'Donor contact, location-sharing or matching consent changed',
+      })
+    }
 
     return res.status(200).json({
       message: 'Profile updated',
@@ -507,6 +530,14 @@ export async function getReportFile(
         message: 'Report file is no longer available',
       })
     }
+
+    void recordAuditSafely({
+      ...actorFromRequest(req),
+      action: 'MEDICAL_REPORT_ACCESSED',
+      entityType: 'MedicalReport',
+      entityId: report.id,
+      summary: `Donor opened medical report ${report.id}`,
+    })
 
     res.setHeader('Cache-Control', 'private, no-store')
     res.setHeader(

@@ -54,6 +54,7 @@ export interface MatchedDonor {
   availability: string
   shareLocation: boolean
   address: string | null
+  approximateArea: string | null
   contactAllowed: boolean
   contactPhone: string | null
   lastDonation: Date | null
@@ -114,6 +115,17 @@ function isLocationMatch(
   return tokens.some((token) => address.includes(token))
 }
 
+function approximateArea(address: string): string | null {
+  const parts = address
+    .split(',')
+    .map((part) => part.replace(/\d+/g, '').trim())
+    .filter(Boolean)
+
+  const area = parts[parts.length - 1]
+
+  return area ? area.slice(0, 80) : null
+}
+
 export async function matchRequest(
   request: MatchRequestRecord
 ): Promise<MatchingResult> {
@@ -140,6 +152,11 @@ export async function matchRequest(
         screeningStatus: 'PASSED',
         confirmationStatus: 'CONFIRMED',
         expiryDate: { gte: now },
+        reservations: {
+          none: {
+            status: { in: ['ACTIVE', 'CONFIRMED'] },
+          },
+        },
         hospitalProfile: {
           status: 'APPROVED',
           isVerified: true,
@@ -160,8 +177,15 @@ export async function matchRequest(
       where: {
         verificationStatus: 'VERIFIED',
         currentAvailability: 'AVAILABLE',
+        consentToContact: true,
+        matchingOptOut: false,
         bloodType: { not: null },
         user: { isActive: true },
+        reservations: {
+          none: {
+            status: { in: ['ACTIVE', 'CONFIRMED'] },
+          },
+        },
       },
       include: {
         user: { select: { name: true } },
@@ -180,7 +204,10 @@ export async function matchRequest(
   )
 
   const units: MatchedUnit[] = assignFefoRank(
-    compatibleUnits
+    compatibleUnits.map((unit) => ({
+      ...unit,
+      distanceKm: null,
+    }))
   ).map((unit) => ({
     unitId: unit.id,
     bagId: unit.bagId,
@@ -249,10 +276,9 @@ export async function matchRequest(
 
       let score = 10
 
-      const locationMatch = isLocationMatch(
-        request.location,
-        donor.address
-      )
+      const locationMatch =
+        donor.shareLocation &&
+        isLocationMatch(request.location, donor.address)
 
       if (locationMatch) {
         score += 40
@@ -289,16 +315,18 @@ export async function matchRequest(
       }
 
       const contactAllowed = donor.consentToContact
+      const area = donor.shareLocation
+        ? approximateArea(donor.address)
+        : null
 
       return {
         donorProfileId: donor.id,
-        displayName: contactAllowed
-          ? donor.user.name
-          : `Verified donor #${donor.id}`,
+        displayName: donor.user.name,
         bloodType: donor.bloodType as string,
         availability: donor.currentAvailability,
         shareLocation: donor.shareLocation,
-        address: donor.shareLocation ? donor.address : null,
+        address: area,
+        approximateArea: area,
         contactAllowed,
         contactPhone: contactAllowed
           ? donor.phone

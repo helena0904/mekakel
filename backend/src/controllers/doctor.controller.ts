@@ -10,7 +10,10 @@ import {
   getVerificationDetail,
   listVerificationQueue,
 } from '../services/medical-verification.service'
-import { actorFromRequest } from '../services/audit.service'
+import {
+  actorFromRequest,
+  recordAuditSafely,
+} from '../services/audit.service'
 import { reviewDonorVerificationSchema } from '../validators/donor.schema'
 import { listVerificationQueueQuerySchema } from '../validators/admin.schema'
 
@@ -165,6 +168,14 @@ export async function getReportFile(
         message: 'Report file is no longer available',
       })
     }
+
+    void recordAuditSafely({
+      ...actorFromRequest(req),
+      action: 'MEDICAL_REPORT_ACCESSED',
+      entityType: 'MedicalReport',
+      entityId: report.id,
+      summary: `Medical report ${report.id} opened for review`,
+    })
 
     res.setHeader('Cache-Control', 'private, no-store')
     res.setHeader(
