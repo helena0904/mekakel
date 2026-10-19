@@ -73,6 +73,7 @@ enum HospitalStaffRole {
 }
 
 enum ScreeningStatus {
+  NOT_TESTED
   PENDING
   PASSED
   FAILED
@@ -85,9 +86,12 @@ enum ConfirmationStatus {
 }
 
 enum BloodUnitStatus {
+  PENDING
   AVAILABLE
   RESERVED
+  TRANSFERRED
   USED
+  EXPIRED
   DISCARDED
 }
 
@@ -125,6 +129,11 @@ enum DonorResponseStatus {
   ACCEPTED
   DECLINED
   NO_SHOW
+}
+
+enum ReservationKind {
+  BLOOD_UNIT
+  DONOR
 }
 
 enum TransferStatus {
@@ -189,6 +198,10 @@ enum AuditAction {
   RESERVATION_RELEASED
   RESERVATION_CONSUMED
   RESERVATION_EXPIRED
+  DONOR_RESPONSE_RECORDED
+  MEDICAL_REPORT_ACCESSED
+  CONSENT_CHANGED
+  EMERGENCY_OVERRIDE_USED
   TRANSFER_REQUESTED
   TRANSFER_APPROVED
   TRANSFER_REJECTED
@@ -250,7 +263,7 @@ model RateLimitCounter {
 model DonorProfile {
   id                   Int                @id @default(autoincrement())
   userId               Int                @unique
-  faydaId              String?
+  faydaId              String?            @unique
   dateOfBirth          DateTime?
   phone                String
   additionalPhone      String?
@@ -267,6 +280,7 @@ model DonorProfile {
   verifiedAt           DateTime?
   consentToContact     Boolean            @default(false)
   shareLocation        Boolean            @default(false)
+  matchingOptOut       Boolean            @default(false)
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
@@ -341,9 +355,10 @@ model BloodUnit {
   expiryDate         DateTime
   screeningStatus    ScreeningStatus    @default(PENDING)
   confirmationStatus ConfirmationStatus @default(PENDING)
-  status             BloodUnitStatus    @default(AVAILABLE)
+  status             BloodUnitStatus    @default(PENDING)
   storageLocation    String?
   storageNotes       String?
+  screenedBy         Int?
   screenedAt         DateTime?
   confirmedAt        DateTime?
   createdByUserId    Int?
@@ -416,10 +431,11 @@ model DonationRecord {
 
 model Reservation {
   id                Int                 @id @default(autoincrement())
-  bloodUnitId       Int
+  bloodUnitId       Int?
   bloodRequestId    Int?
   hospitalProfileId Int
   donorProfileId    Int?
+  kind              ReservationKind     @default(BLOOD_UNIT)
   status            ReservationStatus   @default(ACTIVE)
   donorResponse     DonorResponseStatus @default(PENDING)
   donorRespondedAt  DateTime?
@@ -434,13 +450,14 @@ model Reservation {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
 
-  bloodUnit       BloodUnit       @relation(fields: [bloodUnitId], references: [id], onDelete: Cascade)
+  bloodUnit       BloodUnit?      @relation(fields: [bloodUnitId], references: [id], onDelete: Cascade)
   bloodRequest    BloodRequest?   @relation(fields: [bloodRequestId], references: [id], onDelete: SetNull)
   hospitalProfile HospitalProfile @relation(fields: [hospitalProfileId], references: [id], onDelete: Cascade)
   donorProfile    DonorProfile?   @relation(fields: [donorProfileId], references: [id], onDelete: SetNull)
   transfers       Transfer[]
 
   @@index([bloodUnitId])
+  @@index([donorProfileId])
   @@index([hospitalProfileId])
   @@index([bloodRequestId])
   @@index([status])

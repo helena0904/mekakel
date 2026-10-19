@@ -12,6 +12,7 @@ import {
   createUser,
   createStaffMember,
 } from './helpers/factories'
+import { addDonor } from './helpers/actors'
 import { runExpireReservationsJob } from '../src/jobs/expire-reservations.job'
 
 const app = createApp()
@@ -342,7 +343,7 @@ describe('reservation transitions', () => {
     expect(stored?.status).toBe('AVAILABLE')
   })
 
-  it('discards a cancelled unit that expired while reserved', async () => {
+  it('marks a cancelled unit that expired while reserved as EXPIRED', async () => {
     const hospital = await approvedHospital()
     const { unit, reservation } = await reserve(hospital)
 
@@ -362,7 +363,7 @@ describe('reservation transitions', () => {
       where: { id: unit.id },
     })
 
-    expect(stored?.status).toBe('DISCARDED')
+    expect(stored?.status).toBe('EXPIRED')
   })
 
   it('releases a reservation back to the pool', async () => {
@@ -417,29 +418,20 @@ describe('reservation transitions', () => {
 describe('donor response tracking', () => {
   it('records acceptance, decline and no-show outcomes', async () => {
     const hospital = await approvedHospital()
-    const unit = await addUnit(hospital.hospitalProfileId)
-
-    const { user: donorUser } = await createUser({
-      accountType: 'INDIVIDUAL',
-    })
-    const donor = await prisma.donorProfile.create({
-      data: {
-        userId: donorUser.id,
-        phone: '+251900000000',
-        address: 'Addis Ababa',
-        age: 25,
-        weight: 70,
-        height: 175,
-      },
-    })
+    const donor = await addDonor()
 
     const created = await request(app)
       .post('/api/reservations')
       .set('Authorization', auth(hospital.token))
-      .send(reserveBody(unit.id, { donorProfileId: donor.id }))
+      .send({ donorProfileId: donor.id })
 
     expect(created.status).toBe(201)
+    expect(created.body.reservation.kind).toBe('DONOR')
+    expect(created.body.reservation.bloodUnitId).toBeNull()
     expect(created.body.reservation.donorResponse).toBe('PENDING')
+    expect(
+      created.body.reservation.donorProfile.address
+    ).toBeNull()
 
     const accepted = await request(app)
       .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
@@ -450,6 +442,10 @@ describe('donor response tracking', () => {
     expect(accepted.body.reservation.donorResponse).toBe(
       'ACCEPTED'
     )
+    expect(accepted.body.reservation.status).toBe('CONFIRMED')
+    expect(
+      accepted.body.reservation.donorProfile.address
+    ).toBe(donor.address)
     expect(
       accepted.body.reservation.donorRespondedAt
     ).toBeTruthy()
@@ -463,6 +459,60 @@ describe('donor response tracking', () => {
     expect(noShow.body.reservation.donorResponse).toBe(
       'NO_SHOW'
     )
+    expect(noShow.body.reservation.status).toBe('CANCELLED')
+  })
+
+  it('requires an accepted donor before a donor reservation can be confirmed', async () => {
+    const hospital = await approvedHospital()
+    const donor = await addDonor()
+
+    const created = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: donor.id })
+
+    expect(created.status).toBe(201)
+
+    const confirmed = await request(app)
+      .post(`/api/reservations/${created.body.reservation.id}/confirm`)
+      .set('Authorization', auth(hospital.token))
+      .send({})
+
+    expect(confirmed.status).toBe(409)
+
+    // Acceptance is the confirmation step for a donor reservation.
+    const accepted = await request(app)
+      .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(hospital.token))
+      .send({ donorResponse: 'ACCEPTED' })
+
+    expect(accepted.status).toBe(200)
+    expect(accepted.body.reservation.status).toBe(
+      'CONFIRMED'
+    )
+  })
+
+  it('rejects a donation reservation with no donor or blood unit', async () => {
+    const hospital = await approvedHospital()
+
+    const res = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({})
+
+    expect(res.status).toBe(400)
+  })
+
+  it('rejects donors who have not consented to contact', async () => {
+    const hospital = await approvedHospital()
+    const donor = await addDonor({ consentToContact: false })
+
+    const res = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: donor.id })
+
+    expect(res.status).toBe(409)
   })
 })
 
@@ -494,5 +544,22 @@ describe('reservation expiry job', () => {
 
     expect(reservation?.status).toBe('EXPIRED')
     expect(storedUnit?.status).toBe('AVAILABLE')
+  })
+
+  it('marks overdue available units as EXPIRED', async () => {
+    const hospital = await approvedHospital()
+    const unit = await addUnit(hospital.hospitalProfileId, {
+      expiryDate: new Date(Date.now() - DAY),
+    })
+
+    const result = await runExpireReservationsJob()
+
+    expect(result.unitsExpired).toBeGreaterThanOrEqual(1)
+
+    const stored = await prisma.bloodUnit.findUnique({
+      where: { id: unit.id },
+    })
+
+    expect(stored?.status).toBe('EXPIRED')
   })
 })

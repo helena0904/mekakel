@@ -79,6 +79,13 @@ function App() {
           element={<ResetPassword />}
         />
 
+        <Route element={<ProtectedRoute />}>
+          <Route
+            path="/notifications"
+            element={<NotificationsPage />}
+          />
+        </Route>
+
         <Route
           element={
             <ProtectedRoute allowedAccountType="INDIVIDUAL" />
@@ -107,11 +114,6 @@ function App() {
           <Route
             path="/donor/history"
             element={<DonorHistoryPage />}
-          />
-
-          <Route
-            path="/notifications"
-            element={<NotificationsPage />}
           />
         </Route>
 
@@ -174,11 +176,6 @@ function App() {
             path="/hospital/transfers/:id"
             element={<TransferDetailsPage />}
           />
-
-          <Route
-            path="/notifications"
-            element={<NotificationsPage />}
-          />
         </Route>
 
         <Route
@@ -205,11 +202,6 @@ function App() {
             path="/admin/audit-logs"
             element={<AuditLogsPage />}
           />
-
-          <Route
-            path="/notifications"
-            element={<NotificationsPage />}
-          />
         </Route>
 
         <Route
@@ -230,11 +222,6 @@ function App() {
           <Route
             path="/doctor/verifications/:id"
             element={<ReviewMedicalReportPage />}
-          />
-
-          <Route
-            path="/notifications"
-            element={<NotificationsPage />}
           />
         </Route>
 

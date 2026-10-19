@@ -8,7 +8,6 @@ import type {
   BloodComponent,
   BloodType,
   BloodUnit,
-  BloodUnitStatusValue,
   ConfirmationStatusValue,
   ScreeningStatusValue,
 } from '../../services/inventory.service'
@@ -61,9 +60,6 @@ function BloodUnitForm({
     useState<ConfirmationStatusValue>(
       unit?.confirmationStatus ?? 'PENDING'
     )
-  const [status, setStatus] = useState<BloodUnitStatusValue>(
-    unit?.status ?? 'AVAILABLE'
-  )
   const [storageLocation, setStorageLocation] = useState(
     unit?.storageLocation ?? ''
   )
@@ -112,7 +108,6 @@ function BloodUnitForm({
         expiryDate,
         screeningStatus,
         confirmationStatus,
-        status,
         storageLocation: storageLocation.trim() || undefined,
         storageNotes: storageNotes.trim() || undefined,
       }
@@ -256,6 +251,7 @@ function BloodUnitForm({
               }
               disabled={saving}
             >
+              <option value="NOT_TESTED">Not tested</option>
               <option value="PENDING">Not screened</option>
               <option value="PASSED">Screened (passed)</option>
               <option value="FAILED">Screening failed</option>
@@ -285,27 +281,6 @@ function BloodUnitForm({
         </div>
 
         <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="unit-status">
-              Unit status
-            </label>
-            <select
-              id="unit-status"
-              value={status}
-              onChange={(event) =>
-                setStatus(
-                  event.target.value as BloodUnitStatusValue
-                )
-              }
-              disabled={saving}
-            >
-              <option value="AVAILABLE">Available</option>
-              <option value="RESERVED">Reserved</option>
-              <option value="USED">Used</option>
-              <option value="DISCARDED">Discarded</option>
-            </select>
-          </div>
-
           <div className="form-group">
             <label htmlFor="unit-storage">
               Storage location

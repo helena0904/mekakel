@@ -104,6 +104,7 @@ interface DonorOverrides {
   verificationStatus?: string
   currentAvailability?: string
   consentToContact?: boolean
+  matchingOptOut?: boolean
   shareLocation?: boolean
   address?: string
   lastDonation?: Date | null
@@ -128,6 +129,7 @@ async function addVerifiedDonor(
       currentAvailability: (overrides.currentAvailability ??
         'AVAILABLE') as never,
       consentToContact: overrides.consentToContact ?? true,
+      matchingOptOut: overrides.matchingOptOut ?? false,
       shareLocation: overrides.shareLocation ?? true,
       address: overrides.address ?? 'Addis Ababa',
       lastDonation: overrides.lastDonation ?? null,
@@ -431,6 +433,12 @@ describe('matching donors', () => {
     })
 
     await addVerifiedDonor({
+      bloodType: 'O_NEGATIVE',
+      matchingOptOut: true,
+      address: 'Addis Ababa, Kirkos',
+    })
+
+    await addVerifiedDonor({
       bloodType: 'O_POSITIVE',
       consentToContact: true,
     })
@@ -465,23 +473,16 @@ describe('matching donors', () => {
 
     const donors = matches.body.matches.donors
 
-    expect(donors).toHaveLength(2)
+    // Only the consenting, matching-eligible donor is returned.
+    expect(donors).toHaveLength(1)
 
-    // Ranked first: consented donor in the request location.
     expect(donors[0].contactAllowed).toBe(true)
     expect(donors[0].contactPhone).toBeTruthy()
-    expect(donors[0].address).toBe('Addis Ababa, Bole')
+    expect(donors[0].address).toBe('Bole')
+    expect(donors[0].approximateArea).toBe('Bole')
     expect(donors[0].rank).toBe(1)
 
-    // Second: no consent, no shared location.
-    expect(donors[1].contactAllowed).toBe(false)
-    expect(donors[1].contactPhone).toBeNull()
-    expect(donors[1].address).toBeNull()
-    expect(donors[1].displayName).toMatch(
-      /^Verified donor #/
-    )
-
-    // Never leaks clinical measurements.
+    // Never leaks clinical measurements or exact address.
     expect(donors[0]).not.toHaveProperty('weight')
     expect(donors[0]).not.toHaveProperty('height')
     expect(donors[0]).not.toHaveProperty('faydaId')

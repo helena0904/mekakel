@@ -8,7 +8,10 @@ import {
   listRequests,
   updateRequestStatus,
 } from '../services/blood-request.service'
-import { resolveHospitalAccess } from '../services/hospital.service'
+import {
+  isHospitalApproved,
+  resolveHospitalAccess,
+} from '../services/hospital.service'
 import type {
   HospitalAccess,
   HospitalStaffRoleValue,
@@ -39,6 +42,14 @@ async function ensureHospital(
 
   if (!access) {
     res.status(403).json({ message: 'Hospital access required' })
+    return null
+  }
+
+  if (!isHospitalApproved(access)) {
+    res.status(403).json({
+      message:
+        'Hospital approval is required before managing blood requests',
+    })
     return null
   }
 

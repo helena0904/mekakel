@@ -118,10 +118,10 @@ function MatchResults({ result }: MatchResultsProps) {
         <h2>Eligible volunteer donors</h2>
 
         <p className="section-description">
-          Ranked by availability, location and request
-          urgency. Donor contact details are only shown when
-          the donor has consented; medical details are never
-          shown.
+          Only donors who consented to contact are shown.
+          Ranked by availability, approximate area and request
+          urgency. Exact contact details are shared only after
+          the donor accepts; medical details are never shown.
         </p>
 
         {donors.length === 0 ? (
@@ -143,11 +143,11 @@ function MatchResults({ result }: MatchResultsProps) {
                   </span>
 
                   <p>
-                    {donor.address ||
+                    {donor.approximateArea ||
                       'Location withheld'}
                     {donor.contactAllowed && donor.contactPhone
                       ? ` — ${donor.contactPhone}`
-                      : ' — Contact withheld (no consent)'}
+                      : ' — Contact withheld'}
                   </p>
 
                   {donor.reasons.length > 0 && (

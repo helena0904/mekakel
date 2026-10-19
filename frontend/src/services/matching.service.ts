@@ -34,6 +34,7 @@ export interface MatchedDonor {
   availability: string
   shareLocation: boolean
   address: string | null
+  approximateArea: string | null
   contactAllowed: boolean
   contactPhone: string | null
   lastDonation: string | null

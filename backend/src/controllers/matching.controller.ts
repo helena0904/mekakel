@@ -1,7 +1,10 @@
 import type { Response } from 'express'
 
 import type { AuthRequest } from '../middleware/auth.middleware'
-import { resolveHospitalAccess } from '../services/hospital.service'
+import {
+  isHospitalApproved,
+  resolveHospitalAccess,
+} from '../services/hospital.service'
 import { matchRequestById } from '../services/matching.service'
 
 function parseId(value: unknown): number | null {
@@ -29,6 +32,13 @@ export async function getRequestMatches(
   if (!access) {
     return res.status(403).json({
       message: 'Hospital access required',
+    })
+  }
+
+  if (!isHospitalApproved(access)) {
+    return res.status(403).json({
+      message:
+        'Hospital approval is required before matching blood requests',
     })
   }
 

@@ -92,6 +92,8 @@ export const updateProfileSchema = z.object({
   consentToContact: z.boolean().optional(),
 
   shareLocation: z.boolean().optional(),
+
+  matchingOptOut: z.boolean().optional(),
 })
 
 export const updateAvailabilitySchema = z.object({

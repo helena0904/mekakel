@@ -135,6 +135,25 @@ describe('transfer creation', () => {
     expect(res.status).toBe(400)
   })
 
+  it('blocks unapproved source hospitals from creating transfers', async () => {
+    const { user: pending } = await createUser({
+      accountType: 'HOSPITAL',
+      hospitalVerified: false,
+    })
+    const destination = await approvedHospital()
+    const unit = await addUnit(pending.hospitalProfile!.id)
+
+    const res = await request(app)
+      .post('/api/transfers')
+      .set('Authorization', auth(tokenFor(pending)))
+      .send({
+        bloodUnitId: unit.id,
+        toHospitalProfileId: destination.hospitalProfileId,
+      })
+
+    expect(res.status).toBe(403)
+  })
+
   it('rejects an unapproved destination hospital', async () => {
     const source = await approvedHospital()
     const { user: pending } = await createUser({
@@ -292,7 +311,7 @@ describe('transfer lifecycle', () => {
     expect(stored?.status).toBe('AVAILABLE')
   })
 
-  it('discards a unit that expired by the time it is completed', async () => {
+  it('marks a unit that expired by the time it is completed as EXPIRED', async () => {
     const source = await approvedHospital()
     const destination = await approvedHospital()
     const unit = await addUnit(source.hospitalProfileId)
@@ -333,7 +352,7 @@ describe('transfer lifecycle', () => {
       where: { id: unit.id },
     })
 
-    expect(stored?.status).toBe('DISCARDED')
+    expect(stored?.status).toBe('EXPIRED')
     expect(stored?.hospitalProfileId).toBe(
       destination.hospitalProfileId
     )

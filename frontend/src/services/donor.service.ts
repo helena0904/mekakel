@@ -75,6 +75,7 @@ export interface DonorProfile {
   verifiedAt: string | null
   consentToContact: boolean
   shareLocation: boolean
+  matchingOptOut: boolean
   availabilities: DonorAvailability[]
   medicalReports: MedicalReport[]
   donationHistory: DonationRecord[]
@@ -121,6 +122,7 @@ export interface UpdateProfileInput {
   donationIntervalDays?: number
   consentToContact?: boolean
   shareLocation?: boolean
+  matchingOptOut?: boolean
 }
 
 export interface UpdateAvailabilityInput {

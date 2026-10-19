@@ -4,7 +4,6 @@ import prisma from '../lib/prisma'
 import { AppError } from '../lib/errors'
 import {
   isAvailableStock,
-  isExpired,
   serializeUnit,
 } from './inventory.service'
 import type { SerializedBloodUnit } from './inventory.service'
@@ -204,6 +203,10 @@ interface ActionOptions {
   next: TransferStatusValue
   note: string
   notifyType: NotificationTypeValue
+  guard?: (
+    transfer: TransferWithRelations,
+    now: Date
+  ) => Promise<void> | void
   apply: (
     tx: Prisma.TransactionClient,
     transfer: TransferWithRelations,
@@ -242,6 +245,10 @@ async function runAction(
         `This transfer cannot become ${options.next.toLowerCase()} from its current state (${existing.status.toLowerCase()})`,
         409
       )
+    }
+
+    if (options.guard) {
+      await options.guard(existing, now)
     }
 
     const updated = await tx.transfer.updateMany({
@@ -362,14 +369,17 @@ export async function createTransfer(
 
     const destination = await tx.hospitalProfile.findUnique({
       where: { id: data.toHospitalProfileId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, isVerified: true },
     })
 
     if (!destination) {
       throw new AppError('Destination hospital not found', 404)
     }
 
-    if (destination.status !== 'APPROVED') {
+    if (
+      destination.status !== 'APPROVED' ||
+      !destination.isVerified
+    ) {
       throw new AppError(
         'The destination hospital is not approved to receive transfers',
         409
@@ -427,14 +437,19 @@ export async function createTransfer(
       reservationId = activeReservation?.id ?? null
     }
 
-    if (unit.status === 'AVAILABLE') {
-      if (!isAvailableStock(unit, now)) {
-        throw new AppError(
-          'Only screened, confirmed and unexpired units can be transferred',
-          409
-        )
-      }
+    if (
+      !isAvailableStock(
+        { ...unit, status: 'AVAILABLE' },
+        now
+      )
+    ) {
+      throw new AppError(
+        'Only screened, confirmed and unexpired units can be transferred',
+        409
+      )
+    }
 
+    if (unit.status === 'AVAILABLE') {
       const claimed = await tx.bloodUnit.updateMany({
         where: {
           id: unit.id,
@@ -514,6 +529,19 @@ export function approveTransfer(
     next: 'APPROVED',
     note: note || 'Transfer approved by receiving hospital',
     notifyType: 'TRANSFER_APPROVED',
+    guard: (transfer, now) => {
+      if (
+        !isAvailableStock(
+          { ...transfer.bloodUnit, status: 'AVAILABLE' },
+          now
+        )
+      ) {
+        throw new AppError(
+          'The unit is no longer eligible for transfer',
+          409
+        )
+      }
+    },
     apply: (_tx, _transfer, now, actor) => ({
       status: 'APPROVED',
       approvedAt: now,
@@ -557,11 +585,33 @@ export function dispatchTransfer(
     next: 'DISPATCHED',
     note: note || 'Unit dispatched by source hospital',
     notifyType: 'TRANSFER_DISPATCHED',
+    guard: (transfer, now) => {
+      if (
+        !isAvailableStock(
+          { ...transfer.bloodUnit, status: 'AVAILABLE' },
+          now
+        )
+      ) {
+        throw new AppError(
+          'The unit expired or became ineligible before dispatch',
+          409
+        )
+      }
+    },
     apply: (_tx, _transfer, now, actor) => ({
       status: 'DISPATCHED',
       dispatchedAt: now,
       dispatchedByUserId: actor,
     }),
+    after: async (tx, transfer) => {
+      await tx.bloodUnit.updateMany({
+        where: {
+          id: transfer.bloodUnitId,
+          status: 'RESERVED',
+        },
+        data: { status: 'TRANSFERRED' },
+      })
+    },
   })
 }
 
@@ -603,21 +653,21 @@ export function completeTransfer(
       completedByUserId: actor,
     }),
     after: async (tx, transfer, now) => {
-      const eligible =
-        transfer.bloodUnit.screeningStatus === 'PASSED' &&
-        transfer.bloodUnit.confirmationStatus === 'CONFIRMED' &&
-        !isExpired(transfer.bloodUnit, now)
+      const targetStatus = resolveTargetUnitStatus(
+        transfer.bloodUnit,
+        now
+      )
 
       try {
         const moved = await tx.bloodUnit.updateMany({
           where: {
             id: transfer.bloodUnitId,
             hospitalProfileId: transfer.fromHospitalProfileId,
-            status: 'RESERVED',
+            status: { in: ['RESERVED', 'TRANSFERRED'] },
           },
           data: {
             hospitalProfileId: transfer.toHospitalProfileId,
-            status: eligible ? 'AVAILABLE' : 'DISCARDED',
+            status: targetStatus,
           },
         })
 

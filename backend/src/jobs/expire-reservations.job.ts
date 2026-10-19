@@ -1,3 +1,4 @@
+import { expireOverdueUnits } from '../services/inventory.service'
 import { expireDueReservations } from '../services/reservation.service'
 
 export const DEFAULT_EXPIRE_INTERVAL_MS = 60_000
@@ -5,8 +6,13 @@ export const DEFAULT_EXPIRE_INTERVAL_MS = 60_000
 export async function runExpireReservationsJob(): Promise<{
   scanned: number
   expired: number
+  unitsExpired: number
 }> {
-  return expireDueReservations(new Date())
+  const now = new Date()
+  const result = await expireDueReservations(now)
+  const unitsExpired = await expireOverdueUnits(now)
+
+  return { ...result, unitsExpired }
 }
 
 export function startExpireReservationsJob(

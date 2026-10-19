@@ -6,7 +6,10 @@ import {
   resetDatabase,
   disconnectDatabase,
 } from './helpers/db'
-import { createStaffMember } from './helpers/factories'
+import {
+  createStaffMember,
+  createUser,
+} from './helpers/factories'
 import {
   addUnit,
   approvedHospital,
@@ -292,6 +295,40 @@ describe('inventory role enforcement', () => {
       .set('Authorization', auth(viewerToken))
 
     expect(removed.status).toBe(403)
+  })
+
+  it('blocks hospitals that are not yet approved', async () => {
+    const { user } = await createUser({
+      accountType: 'HOSPITAL',
+      hospitalVerified: false,
+    })
+
+    const listed = await request(app)
+      .get('/api/inventory')
+      .set('Authorization', auth(tokenFor(user)))
+
+    expect(listed.status).toBe(403)
+
+    const created = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', auth(tokenFor(user)))
+      .send(createUnitBody())
+
+    expect(created.status).toBe(403)
+  })
+
+  it('blocks hospitals whose approval was suspended', async () => {
+    const { user } = await createUser({
+      accountType: 'HOSPITAL',
+      hospitalVerified: true,
+      hospitalStatus: 'SUSPENDED',
+    })
+
+    const listed = await request(app)
+      .get('/api/inventory')
+      .set('Authorization', auth(tokenFor(user)))
+
+    expect(listed.status).toBe(403)
   })
 
   it('rejects duplicate bag identifiers within a hospital', async () => {
