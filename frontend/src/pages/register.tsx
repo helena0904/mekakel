@@ -22,7 +22,8 @@ const MAX_REPORT_SIZE = 5 * 1024 * 1024
 
 type Availability = {
   enabled: boolean
-  time: string
+  startTime: string
+  endTime: string
 }
 
 const countryCodes = [
@@ -50,13 +51,13 @@ const weekdays: [Weekday, string][] = [
 ]
 
 const emptyAvailability: Record<Weekday, Availability> = {
-  MONDAY: { enabled: false, time: '' },
-  TUESDAY: { enabled: false, time: '' },
-  WEDNESDAY: { enabled: false, time: '' },
-  THURSDAY: { enabled: false, time: '' },
-  FRIDAY: { enabled: false, time: '' },
-  SATURDAY: { enabled: false, time: '' },
-  SUNDAY: { enabled: false, time: '' },
+  MONDAY: { enabled: false, startTime: '', endTime: '' },
+  TUESDAY: { enabled: false, startTime: '', endTime: '' },
+  WEDNESDAY: { enabled: false, startTime: '', endTime: '' },
+  THURSDAY: { enabled: false, startTime: '', endTime: '' },
+  FRIDAY: { enabled: false, startTime: '', endTime: '' },
+  SATURDAY: { enabled: false, startTime: '', endTime: '' },
+  SUNDAY: { enabled: false, startTime: '', endTime: '' },
 }
 
 function Register() {
@@ -88,7 +89,8 @@ function Register() {
   const [additionalPhone, setAdditionalPhone] = useState('')
   const [additionalCountryCode, setAdditionalCountryCode] =
     useState('+251')
-  const [address, setAddress] = useState('')
+  const [subcity, setSubcity] = useState('')
+  const [wereda, setWereda] = useState('')
 
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -110,7 +112,8 @@ function Register() {
 
   const [hospitalName, setHospitalName] = useState('')
   const [institutionalEmail, setInstitutionalEmail] = useState('')
-  const [hospitalAddress, setHospitalAddress] = useState('')
+  const [hospitalSubcity, setHospitalSubcity] = useState('')
+  const [hospitalWereda, setHospitalWereda] = useState('')
   const [hospitalPhone, setHospitalPhone] = useState('')
   const [hospitalCountryCode, setHospitalCountryCode] = useState('+251')
   const [hospitalAdditionalPhone, setHospitalAdditionalPhone] =
@@ -227,12 +230,18 @@ function Register() {
     .filter(([, value]) => value.enabled)
     .map(([day, value]) => ({
       day: day as Weekday,
-      time: value.time,
+      startTime: value.startTime,
+      endTime: value.endTime,
     }))
 
   const availabilityIsValid =
     selectedAvailability.length > 0 &&
-    selectedAvailability.every((item) => item.time.trim().length > 0)
+    selectedAvailability.every(
+      (item) =>
+        item.startTime.length > 0 &&
+        item.endTime.length > 0 &&
+        item.startTime < item.endTime,
+    )
 
   const handleFaydaVerification = async () => {
     setFaydaMessage('')
@@ -318,8 +327,13 @@ function Register() {
 
     if (!availabilityIsValid) {
       setError(
-        'Please select at least one available day and choose a time for it.',
+        'Please select at least one available day and choose an available time range (from and to).',
       )
+      return
+    }
+
+    if (!subcity.trim() || !wereda.trim()) {
+      setError('Please enter your subcity and wereda.')
       return
     }
 
@@ -406,7 +420,9 @@ function Register() {
         additionalPhone: additionalPhone.trim()
           ? `${additionalCountryCode}${additionalPhone.trim()}`
           : undefined,
-        address: address.trim(),
+        address: `${wereda.trim()}, ${subcity.trim()}`,
+        subcity: subcity.trim(),
+        wereda: wereda.trim(),
         age: Number(age),
         weight: Number(weight),
         height: Number(height),
@@ -461,6 +477,11 @@ function Register() {
       return
     }
 
+    if (!hospitalSubcity.trim() || !hospitalWereda.trim()) {
+      setError('Please enter the hospital subcity and wereda.')
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -472,7 +493,9 @@ function Register() {
         name: hospitalName.trim(),
         accountType: 'HOSPITAL',
         hospitalName: hospitalName.trim(),
-        address: hospitalAddress.trim(),
+        address: `${hospitalWereda.trim()}, ${hospitalSubcity.trim()}`,
+        subcity: hospitalSubcity.trim(),
+        wereda: hospitalWereda.trim(),
         phone: `${hospitalCountryCode}${hospitalPhone.trim()}`,
         additionalPhone: hospitalAdditionalPhone.trim()
           ? `${hospitalAdditionalCountryCode}${hospitalAdditionalPhone.trim()}`
@@ -721,18 +744,38 @@ function Register() {
                 </small>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="hospitalAddress">Address</label>
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="hospitalSubcity">Subcity</label>
 
-                <input
-                  type="text"
-                  id="hospitalAddress"
-                  name="hospitalAddress"
-                  value={hospitalAddress}
-                  onChange={(e) => setHospitalAddress(e.target.value)}
-                  placeholder="Enter hospital or clinic address"
-                  required
-                />
+                  <input
+                    type="text"
+                    id="hospitalSubcity"
+                    name="hospitalSubcity"
+                    value={hospitalSubcity}
+                    onChange={(e) =>
+                      setHospitalSubcity(e.target.value)
+                    }
+                    placeholder="Enter subcity"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="hospitalWereda">Wereda</label>
+
+                  <input
+                    type="text"
+                    id="hospitalWereda"
+                    name="hospitalWereda"
+                    value={hospitalWereda}
+                    onChange={(e) =>
+                      setHospitalWereda(e.target.value)
+                    }
+                    placeholder="Enter wereda"
+                    required
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -1240,18 +1283,34 @@ function Register() {
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="address">Address</label>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="subcity">Subcity</label>
 
-              <input
-                type="text"
-                id="address"
-                name="address"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="Enter your address"
-                required
-              />
+                <input
+                  type="text"
+                  id="subcity"
+                  name="subcity"
+                  value={subcity}
+                  onChange={(e) => setSubcity(e.target.value)}
+                  placeholder="Enter your subcity"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="wereda">Wereda</label>
+
+                <input
+                  type="text"
+                  id="wereda"
+                  name="wereda"
+                  value={wereda}
+                  onChange={(e) => setWereda(e.target.value)}
+                  placeholder="Enter your wereda"
+                  required
+                />
+              </div>
             </div>
           </section>
 
@@ -1396,15 +1455,40 @@ function Register() {
                     <span>{label}</span>
                   </label>
 
-                  <input
-                    type="time"
-                    value={availability[day].time}
-                    disabled={!availability[day].enabled}
-                    required={availability[day].enabled}
-                    onChange={(e) =>
-                      updateAvailability(day, 'time', e.target.value)
-                    }
-                  />
+                  <span className="time-range">
+                    <input
+                      type="time"
+                      aria-label={`${label} available from`}
+                      value={availability[day].startTime}
+                      disabled={!availability[day].enabled}
+                      required={availability[day].enabled}
+                      onChange={(e) =>
+                        updateAvailability(
+                          day,
+                          'startTime',
+                          e.target.value,
+                        )
+                      }
+                    />
+
+                    <span className="time-range-separator">to</span>
+
+                    <input
+                      type="time"
+                      aria-label={`${label} available to`}
+                      value={availability[day].endTime}
+                      disabled={!availability[day].enabled}
+                      required={availability[day].enabled}
+                      min={availability[day].startTime || undefined}
+                      onChange={(e) =>
+                        updateAvailability(
+                          day,
+                          'endTime',
+                          e.target.value,
+                        )
+                      }
+                    />
+                  </span>
                 </div>
               ))}
             </div>

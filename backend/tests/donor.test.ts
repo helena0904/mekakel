@@ -154,6 +154,68 @@ describe('donor profile management', () => {
     expect(res.body.user).not.toHaveProperty('passwordHash')
     expect(res.body.user).not.toHaveProperty('passwordVersion')
   })
+
+  it('requires re-verification when the weight changes', async () => {
+    const { token, profileId } = await donorActor()
+
+    await prisma.donorProfile.update({
+      where: { id: profileId },
+      data: {
+        verificationStatus: 'VERIFIED',
+        verificationNotes: 'Approved',
+        verifiedAt: new Date(),
+        weight: 70,
+      },
+    })
+
+    const res = await request(app)
+      .put('/api/donor/profile')
+      .set('Authorization', auth(token))
+      .send(validProfileBody({ weight: 80 }))
+
+    expect(res.status).toBe(200)
+    expect(res.body.profile.verificationStatus).toBe('PENDING')
+
+    const stored = await prisma.donorProfile.findUnique({
+      where: { id: profileId },
+    })
+
+    expect(stored?.verificationStatus).toBe('PENDING')
+    expect(stored?.verificationNotes).toMatch(/weight/i)
+  })
+
+  it('keeps verification when address, phone and last donation change', async () => {
+    const { token, profileId } = await donorActor()
+
+    await prisma.donorProfile.update({
+      where: { id: profileId },
+      data: {
+        verificationStatus: 'VERIFIED',
+        verificationNotes: 'Approved',
+        verifiedAt: new Date(),
+        weight: 70,
+      },
+    })
+
+    const res = await request(app)
+      .put('/api/donor/profile')
+      .set('Authorization', auth(token))
+      .send(
+        validProfileBody({
+          weight: 70,
+          subcity: 'Bole',
+          wereda: 'Woreda 03',
+          lastDonation: '2026-01-15',
+        })
+      )
+
+    expect(res.status).toBe(200)
+    expect(res.body.profile.verificationStatus).toBe('VERIFIED')
+    expect(res.body.profile.address).toBe('Woreda 03, Bole')
+    expect(res.body.profile.subcity).toBe('Bole')
+    expect(res.body.profile.wereda).toBe('Woreda 03')
+    expect(res.body.profile.activeStatus).toBe('ACTIVE')
+  })
 })
 
 describe('donor availability', () => {
@@ -198,6 +260,52 @@ describe('donor availability', () => {
 
     expect(res.status).toBe(400)
     expect(res.body.message).toMatch(/cannot repeat/i)
+  })
+
+  it('accepts an hour-to-hour availability range', async () => {
+    const { token, profileId } = await donorActor()
+
+    const res = await request(app)
+      .put('/api/donor/availability')
+      .set('Authorization', auth(token))
+      .send({
+        currentAvailability: 'AVAILABLE',
+        availabilities: [
+          {
+            day: 'MONDAY',
+            startTime: '09:00',
+            endTime: '17:30',
+          },
+        ],
+      })
+
+    expect(res.status).toBe(200)
+
+    const row = await prisma.donorAvailabilitySchedule.findFirst({
+      where: { donorProfileId: profileId },
+    })
+
+    expect(row?.time).toBe('09:00-17:30')
+  })
+
+  it('rejects a range whose end is not after the start', async () => {
+    const { token } = await donorActor()
+
+    const res = await request(app)
+      .put('/api/donor/availability')
+      .set('Authorization', auth(token))
+      .send({
+        currentAvailability: 'AVAILABLE',
+        availabilities: [
+          {
+            day: 'MONDAY',
+            startTime: '17:00',
+            endTime: '09:00',
+          },
+        ],
+      })
+
+    expect(res.status).toBe(400)
   })
 })
 

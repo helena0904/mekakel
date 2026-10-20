@@ -91,6 +91,7 @@ export interface BloodUnitInput {
   status?: BloodUnitStatusValue
   storageLocation?: string
   storageNotes?: string
+  quantity?: number
 }
 
 export interface BloodUnitFilters {

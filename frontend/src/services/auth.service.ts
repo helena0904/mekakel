@@ -46,7 +46,8 @@ export interface LoginResponse {
 
 export interface AvailabilityData {
   day: Weekday
-  time: string
+  startTime: string
+  endTime: string
 }
 
 // REGISTRATION TYPES
@@ -65,6 +66,8 @@ export interface RegisterData {
   phone?: string
   additionalPhone?: string
   address?: string
+  subcity?: string
+  wereda?: string
 
   // Donor details
   age?: number

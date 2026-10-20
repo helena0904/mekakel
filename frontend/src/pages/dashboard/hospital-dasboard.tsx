@@ -128,8 +128,8 @@ function HospitalDashboard() {
                   </Link>
                 </li>
                 <li>
-                  <Link to="/hospital/staff">
-                    Manage staff accounts
+                  <Link to="/hospital/search">
+                    Search nearby donors and hospitals
                   </Link>
                 </li>
                 <li>

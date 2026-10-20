@@ -1,9 +1,25 @@
 import prisma from '../lib/prisma'
-import type {
-  CreateDonationRecordInput,
-  UpdateAvailabilityInput,
-  UpdateProfileInput,
+import {
+  activationNotes,
+  computeDonationActivation,
+} from './eligibility.service'
+import {
+  normalizeAvailability,
+  type CreateDonationRecordInput,
+  type UpdateAvailabilityInput,
+  type UpdateProfileInput,
 } from '../validators/donor.schema'
+
+export function composeAddress(
+  wereda?: string | null,
+  subcity?: string | null
+): string | null {
+  const parts = [wereda, subcity]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+
+  return parts.length > 0 ? parts.join(', ') : null
+}
 
 const profileInclude = {
   availabilities: { orderBy: { id: 'asc' as const } },
@@ -28,6 +44,52 @@ export async function updateDonorProfile(
   userId: number,
   data: UpdateProfileInput
 ) {
+  const existing = await prisma.donorProfile.findUnique({
+    where: {
+      userId,
+    },
+    include: profileInclude,
+  })
+
+  if (!existing) {
+    return null
+  }
+
+  // Changing the medical report or the recorded weight always invalidates the
+  // previous medical review and requires a fresh verification. Contact and
+  // location details (address, phone, last donation) do not.
+  const weightChanged =
+    data.weight !== undefined && data.weight !== existing.weight
+
+  const subcity =
+    data.subcity !== undefined ? data.subcity : existing.subcity
+  const wereda =
+    data.wereda !== undefined ? data.wereda : existing.wereda
+
+  const composed = composeAddress(wereda, subcity)
+
+  const dateOfBirth = data.dateOfBirth
+    ? new Date(data.dateOfBirth)
+    : existing.dateOfBirth
+
+  const lastDonation =
+    data.lastDonation !== undefined
+      ? new Date(data.lastDonation)
+      : existing.lastDonation
+
+  const donationIntervalDays =
+    data.donationIntervalDays ?? existing.donationIntervalDays
+
+  const activation = computeDonationActivation(
+    {
+      dateOfBirth,
+      weight: data.weight,
+      lastDonation,
+      donationIntervalDays,
+    },
+    existing.donationHistory.map((record) => record.donatedAt)
+  )
+
   return prisma.donorProfile.update({
     where: {
       userId,
@@ -35,20 +97,32 @@ export async function updateDonorProfile(
     data: {
       phone: data.phone,
       additionalPhone: data.additionalPhone || null,
-      address: data.address,
+      address: composed ?? data.address,
+      subcity: subcity ?? null,
+      wereda: wereda ?? null,
       bloodType:
         data.bloodType === undefined
           ? undefined
           : data.bloodType,
-      dateOfBirth: data.dateOfBirth
-        ? new Date(data.dateOfBirth)
-        : undefined,
+      dateOfBirth,
       weight: data.weight,
       height: data.height,
-      donationIntervalDays: data.donationIntervalDays,
+      donationIntervalDays,
+      lastDonation:
+        data.lastDonation === undefined ? undefined : lastDonation,
       consentToContact: data.consentToContact,
       shareLocation: data.shareLocation,
       matchingOptOut: data.matchingOptOut,
+      activeStatus: activation.status,
+      activationNotes: activationNotes(activation),
+      ...(weightChanged
+        ? {
+            verificationStatus: 'PENDING' as const,
+            verificationNotes:
+              'Your weight changed. Please upload an updated medical report so your eligibility can be verified again.',
+            verifiedAt: null,
+          }
+        : {}),
     },
     include: profileInclude,
   })
@@ -92,7 +166,7 @@ export async function updateAvailability(
         data: data.availabilities.map((entry) => ({
           donorProfileId: profile.id,
           day: entry.day,
-          time: entry.time,
+          time: normalizeAvailability(entry).time,
         })),
       })
     }
@@ -201,6 +275,12 @@ export async function addDonationRecord(
     select: {
       id: true,
       lastDonation: true,
+      dateOfBirth: true,
+      weight: true,
+      donationIntervalDays: true,
+      donationHistory: {
+        select: { donatedAt: true },
+      },
     },
   })
 
@@ -209,6 +289,24 @@ export async function addDonationRecord(
   }
 
   const donatedAt = new Date(data.donatedAt)
+
+  const latestDonation =
+    !profile.lastDonation || donatedAt > profile.lastDonation
+      ? donatedAt
+      : profile.lastDonation
+
+  const activation = computeDonationActivation(
+    {
+      dateOfBirth: profile.dateOfBirth,
+      weight: profile.weight,
+      lastDonation: latestDonation,
+      donationIntervalDays: profile.donationIntervalDays,
+    },
+    [
+      ...profile.donationHistory.map((record) => record.donatedAt),
+      donatedAt,
+    ]
+  )
 
   return prisma.$transaction(async (tx) => {
     const record = await tx.donationRecord.create({
@@ -221,19 +319,16 @@ export async function addDonationRecord(
       },
     })
 
-    if (
-      !profile.lastDonation ||
-      donatedAt > profile.lastDonation
-    ) {
-      await tx.donorProfile.update({
-        where: {
-          id: profile.id,
-        },
-        data: {
-          lastDonation: donatedAt,
-        },
-      })
-    }
+    await tx.donorProfile.update({
+      where: {
+        id: profile.id,
+      },
+      data: {
+        lastDonation: latestDonation,
+        activeStatus: activation.status,
+        activationNotes: activationNotes(activation),
+      },
+    })
 
     return record
   })

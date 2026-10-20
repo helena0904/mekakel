@@ -202,6 +202,16 @@ export function renderWorkflowEmail(
       ]
       break
 
+    case 'HOSPITAL_REGISTERED':
+      subject = 'Welcome to MEKAKEL'
+      lines = [
+        `Your hospital registration for ${hospital} has been received.`,
+        'An administrator will review your hospital details before your account is activated.',
+        'You can sign in now to review your profile while the review is pending.',
+        'You will receive another email once your hospital is approved.',
+      ]
+      break
+
     case 'HOSPITAL_APPROVED':
       subject = 'Your hospital is approved on MEKAKEL'
       lines = [

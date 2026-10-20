@@ -72,6 +72,13 @@ export const createBloodUnitSchema = z
     storageLocation: optionalTrimmed(200),
 
     storageNotes: optionalTrimmed(500),
+
+    quantity: z.coerce
+      .number()
+      .int()
+      .min(1, 'Quantity must be at least 1')
+      .max(500, 'Quantity cannot exceed 500')
+      .optional(),
   })
   .refine(
     (value) =>

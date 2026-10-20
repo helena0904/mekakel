@@ -12,7 +12,19 @@ import { PostgresRateLimitStore } from '../lib/rate-limit-store'
 import { verifyMockFayda } from '../services/fayda.service'
 import { handleMedicalReportUpload } from '../middleware/upload.middleware'
 import { sendPasswordResetEmail } from '../services/email.service'
-import { queueNotification } from '../services/notification.service'
+import {
+  deliverNotification,
+  queueNotification,
+} from '../services/notification.service'
+import {
+  activationNotes,
+  computeDonationActivation,
+} from '../services/eligibility.service'
+import { composeAddress } from '../services/donor.service'
+import {
+  availabilityEntrySchema,
+  normalizeAvailability,
+} from '../validators/donor.schema'
 import {
   authenticateToken,
   type AuthRequest,
@@ -175,22 +187,6 @@ const optionalDate = z.preprocess(
     .optional()
 )
 
-const availabilitySchema = z.object({
-  day: z.enum([
-    'MONDAY',
-    'TUESDAY',
-    'WEDNESDAY',
-    'THURSDAY',
-    'FRIDAY',
-    'SATURDAY',
-    'SUNDAY',
-  ]),
-  time: z.string().regex(
-    /^([01]\d|2[0-3]):[0-5]\d$/,
-    'Time must use HH:mm format'
-  ),
-})
-
 const availabilityList = z.preprocess(
   (value) => {
     if (value === '' || value == null) {
@@ -207,7 +203,7 @@ const availabilityList = z.preprocess(
       return value
     }
   },
-  z.array(availabilitySchema).max(7).optional()
+  z.array(availabilityEntrySchema).max(7).optional()
 )
 
 const registerSchema = z.object({
@@ -225,6 +221,8 @@ const registerSchema = z.object({
   phone: z.string().trim().optional(),
   additionalPhone: z.string().trim().optional(),
   address: z.string().trim().optional(),
+  subcity: z.string().trim().max(120).optional(),
+  wereda: z.string().trim().max(120).optional(),
 
   age: optionalNumber(z.number().int().min(18)),
   weight: optionalNumber(z.number().positive()),
@@ -280,12 +278,17 @@ router.post(
       const data = parsed.data
       const file = req.file
 
+      const donorAddress =
+        composeAddress(data.wereda, data.subcity) ??
+        data.address ??
+        null
+
       if (data.accountType === 'INDIVIDUAL') {
         if (
           !data.faydaId ||
           !data.dateOfBirth ||
           !data.phone ||
-          !data.address ||
+          !donorAddress ||
           data.age === undefined ||
           data.weight === undefined ||
           data.height === undefined
@@ -371,7 +374,7 @@ router.post(
       } else {
         if (
           !data.hospitalName ||
-          !data.address ||
+          !donorAddress ||
           !data.phone
         ) {
           return res.status(400).json({
@@ -386,6 +389,17 @@ router.post(
           })
         }
       }
+
+      const donorActivation = computeDonationActivation({
+        dateOfBirth: data.dateOfBirth
+          ? new Date(data.dateOfBirth)
+          : null,
+        weight: data.weight ?? 0,
+        lastDonation: data.lastDonation
+          ? new Date(data.lastDonation)
+          : null,
+        donationIntervalDays: 90,
+      })
 
       const selectedDays =
         data.accountType === 'INDIVIDUAL'
@@ -449,7 +463,9 @@ router.post(
                         phone: data.phone!,
                         additionalPhone:
                           data.additionalPhone || null,
-                        address: data.address!,
+                        address: donorAddress!,
+                        subcity: data.subcity || null,
+                        wereda: data.wereda || null,
                         age: data.age!,
                         weight: data.weight!,
                         height: data.height!,
@@ -460,11 +476,15 @@ router.post(
                           ? new Date(data.lastDonation)
                           : null,
                         verificationStatus: 'PENDING',
+                        activeStatus: donorActivation.status,
+                        activationNotes:
+                          activationNotes(donorActivation),
                         availabilities: {
                           create: selectedDays.map(
                             (item) => ({
                               day: item.day,
-                              time: item.time,
+                              time: normalizeAvailability(item)
+                                .time,
                             })
                           ),
                         },
@@ -477,7 +497,9 @@ router.post(
                         hospitalName:
                           data.hospitalName!,
                         phone: data.phone!,
-                        address: data.address!,
+                        address: donorAddress!,
+                        subcity: data.subcity || null,
+                        wereda: data.wereda || null,
                         additionalPhone:
                           data.additionalPhone || null,
                         isVerified: false,
@@ -521,21 +543,46 @@ router.post(
         }
       )
 
-      if (data.accountType === 'INDIVIDUAL') {
-        try {
-          await queueNotification({
-            userId: user.id,
-            type: 'DONOR_REGISTERED',
-            context: { recipientName: user.name },
-            relatedEntityType: 'DonorProfile',
-            relatedEntityId: user.donorProfile?.id,
-          })
-        } catch (notificationError) {
-          console.error(
-            '[auth] donor welcome notification failed',
-            notificationError
+      try {
+        const isDonor = data.accountType === 'INDIVIDUAL'
+
+        const welcomeEmail = await queueNotification({
+          userId: user.id,
+          type: isDonor
+            ? 'DONOR_REGISTERED'
+            : 'HOSPITAL_REGISTERED',
+          context: {
+            recipientName: user.name,
+            hospitalName: user.hospitalProfile?.hospitalName,
+          },
+          relatedEntityType: isDonor
+            ? 'DonorProfile'
+            : 'HospitalProfile',
+          relatedEntityId: isDonor
+            ? user.donorProfile?.id
+            : user.hospitalProfile?.id,
+        })
+
+        if (
+          welcomeEmail?.status === 'PENDING' &&
+          process.env.NODE_ENV !== 'test'
+        ) {
+          // Send the welcome email immediately instead of waiting for the
+          // background job; failures are retried by the job as usual.
+          void deliverNotification(welcomeEmail.id).catch(
+            (deliveryError) => {
+              console.error(
+                '[auth] welcome email delivery failed',
+                deliveryError
+              )
+            }
           )
         }
+      } catch (notificationError) {
+        console.error(
+          '[auth] welcome notification failed',
+          notificationError
+        )
       }
 
       return res.status(201).json({

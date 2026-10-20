@@ -19,7 +19,10 @@ import {
   actorFromRequest,
   recordAuditSafely,
 } from '../services/audit.service'
-import { computeEligibility } from '../services/eligibility.service'
+import {
+  computeDonationActivation,
+  computeEligibility,
+} from '../services/eligibility.service'
 import { getEligibilityConfig } from '../services/settings.service'
 import type { AuthRequest } from '../middleware/auth.middleware'
 import {
@@ -210,14 +213,20 @@ export async function getDashboard(
       await getEligibilityConfig()
     )
 
+    const activation = computeDonationActivation(
+      profile,
+      profile.donationHistory.map((record) => record.donatedAt)
+    )
+
     return res.status(200).json({
       profile,
       eligibility,
+      activation,
       stats: {
         totalDonations: profile.donationHistory.length,
         totalReports: profile.medicalReports.length,
         lastDonation: profile.lastDonation,
-        nextEligibleDate: eligibility.nextEligibleDate,
+        nextEligibleDate: activation.nextEligibleDate,
       },
     })
   } catch (error) {

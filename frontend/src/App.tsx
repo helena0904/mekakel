@@ -25,7 +25,7 @@ import DonorMedicalReportsPage from './pages/donor/donor-medical-reports'
 import DonorHistoryPage from './pages/donor/donor-history'
 
 import HospitalProfilePage from './pages/hospital/hospital-profile'
-import HospitalStaffPage from './pages/hospital/hospital-staff'
+import HospitalSearchPage from './pages/hospital/hospital-search'
 import BloodInventoryPage from './pages/hospital/blood-inventory'
 
 import HospitalApprovalsPage from './pages/admin/hospital-approvals'
@@ -133,8 +133,8 @@ function App() {
           />
 
           <Route
-            path="/hospital/staff"
-            element={<HospitalStaffPage />}
+            path="/hospital/search"
+            element={<HospitalSearchPage />}
           />
 
           <Route

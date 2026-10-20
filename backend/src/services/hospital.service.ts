@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt'
 
 import prisma from '../lib/prisma'
+import { composeAddress } from './donor.service'
 import {
   recordAudit,
   type AuditActor,
@@ -164,7 +165,10 @@ export function updateHospitalProfile(
     where: { id: hospitalProfileId },
     data: {
       hospitalName: data.hospitalName,
-      address: data.address,
+      address:
+        composeAddress(data.wereda, data.subcity) ?? data.address,
+      subcity: data.subcity || null,
+      wereda: data.wereda || null,
       phone: data.phone,
       additionalPhone: data.additionalPhone || null,
     },

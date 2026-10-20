@@ -26,7 +26,8 @@ function ProfileForm({
   const [additionalPhone, setAdditionalPhone] = useState(
     profile.additionalPhone ?? ''
   )
-  const [address, setAddress] = useState(profile.address)
+  const [subcity, setSubcity] = useState(profile.subcity ?? '')
+  const [wereda, setWereda] = useState(profile.wereda ?? '')
   const [bloodType, setBloodType] = useState<BloodType | ''>(
     profile.bloodType ?? ''
   )
@@ -34,6 +35,9 @@ function ProfileForm({
     profile.dateOfBirth
       ? profile.dateOfBirth.slice(0, 10)
       : ''
+  )
+  const [lastDonation, setLastDonation] = useState(
+    profile.lastDonation ? profile.lastDonation.slice(0, 10) : ''
   )
   const [weight, setWeight] = useState(String(profile.weight))
   const [height, setHeight] = useState(String(profile.height))
@@ -68,7 +72,9 @@ function ProfileForm({
     try {
       const input: UpdateProfileInput = {
         phone: phone.trim(),
-        address: address.trim(),
+        address: `${wereda.trim()}, ${subcity.trim()}`,
+        subcity: subcity.trim(),
+        wereda: wereda.trim(),
         weight: Number(weight),
         height: Number(height),
         bloodType: bloodType === '' ? null : bloodType,
@@ -85,6 +91,10 @@ function ProfileForm({
 
       if (dateOfBirth) {
         input.dateOfBirth = dateOfBirth
+      }
+
+      if (lastDonation) {
+        input.lastDonation = lastDonation
       }
 
       if (donationIntervalDays.trim()) {
@@ -158,18 +168,34 @@ function ProfileForm({
           />
         </div>
 
-        <div className="form-group">
-          <label htmlFor="donor-address">Address</label>
-          <input
-            id="donor-address"
-            type="text"
-            value={address}
-            onChange={(event) =>
-              setAddress(event.target.value)
-            }
-            required
-            disabled={saving}
-          />
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="donor-subcity">Subcity</label>
+            <input
+              id="donor-subcity"
+              type="text"
+              value={subcity}
+              onChange={(event) =>
+                setSubcity(event.target.value)
+              }
+              required
+              disabled={saving}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="donor-wereda">Wereda</label>
+            <input
+              id="donor-wereda"
+              type="text"
+              value={wereda}
+              onChange={(event) =>
+                setWereda(event.target.value)
+              }
+              required
+              disabled={saving}
+            />
+          </div>
         </div>
 
         <div className="form-group">
@@ -270,6 +296,31 @@ function ProfileForm({
             professional decides final eligibility.
           </small>
         </div>
+
+        <div className="form-group">
+          <label htmlFor="donor-last-donation">
+            Last donation date
+          </label>
+          <input
+            id="donor-last-donation"
+            type="date"
+            value={lastDonation}
+            max={new Date().toISOString().slice(0, 10)}
+            onChange={(event) =>
+              setLastDonation(event.target.value)
+            }
+            disabled={saving}
+          />
+          <small>
+            Leave empty if you have never donated. Updating your
+            last donation date does not require re-verification.
+          </small>
+        </div>
+
+        <p className="section-description">
+          Changing your weight requires your medical report to be
+          verified again.
+        </p>
       </section>
 
       <section className="form-section">

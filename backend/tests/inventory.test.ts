@@ -350,4 +350,39 @@ describe('inventory role enforcement', () => {
 
     expect(second.status).toBe(409)
   })
+
+  it('creates multiple shareable units with numbered bag identifiers', async () => {
+    const hospital = await approvedHospital()
+
+    const created = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', auth(hospital.token))
+      .send(createUnitBody({ bagId: 'BG-101', quantity: 3 }))
+
+    expect(created.status).toBe(201)
+    expect(created.body.units).toHaveLength(3)
+    expect(created.body.unit.bagId).toBe('BG-101-1')
+    expect(
+      created.body.units.map(
+        (unit: { bagId: string }) => unit.bagId
+      )
+    ).toEqual(['BG-101-1', 'BG-101-2', 'BG-101-3'])
+
+    const listed = await request(app)
+      .get('/api/inventory')
+      .set('Authorization', auth(hospital.token))
+
+    expect(listed.body.units).toHaveLength(3)
+  })
+
+  it('rejects a quantity outside the supported range', async () => {
+    const hospital = await approvedHospital()
+
+    const response = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', auth(hospital.token))
+      .send(createUnitBody({ quantity: 0 }))
+
+    expect(response.status).toBe(400)
+  })
 })

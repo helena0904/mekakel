@@ -1,5 +1,28 @@
 import { z } from 'zod'
 
+import {
+  BLOOD_TYPES,
+} from './donor.schema'
+import {
+  BLOOD_COMPONENTS,
+} from './inventory.schema'
+
+export const hospitalSearchQuerySchema = z.object({
+  bloodType: z.enum(BLOOD_TYPES).optional(),
+
+  component: z.enum(BLOOD_COMPONENTS).optional(),
+
+  subcity: z.string().trim().max(120).optional(),
+
+  wereda: z.string().trim().max(120).optional(),
+
+  q: z.string().trim().max(120).optional(),
+})
+
+export type HospitalSearchQuery = z.infer<
+  typeof hospitalSearchQuerySchema
+>
+
 export const HOSPITAL_STAFF_ROLES = [
   'ADMIN',
   'MANAGER',
@@ -48,6 +71,10 @@ export const updateHospitalProfileSchema = z.object({
     .string()
     .trim()
     .min(3, 'Please enter the hospital address'),
+
+  subcity: z.string().trim().max(120).optional(),
+
+  wereda: z.string().trim().max(120).optional(),
 
   phone: z
     .string()

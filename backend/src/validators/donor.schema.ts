@@ -43,15 +43,83 @@ const optionalNumber = (schema: z.ZodNumber) =>
     schema.optional()
   )
 
-export const availabilityEntrySchema = z.object({
-  day: z.enum(WEEKDAYS),
-  time: z
-    .string()
-    .regex(
-      /^([01]\d|2[0-3]):[0-5]\d$/,
-      'Time must use HH:mm format'
-    ),
-})
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/
+
+export const availabilityEntrySchema = z
+  .object({
+    day: z.enum(WEEKDAYS),
+
+    time: z
+      .string()
+      .regex(
+        TIME_PATTERN,
+        'Time must use HH:mm format'
+      )
+      .optional(),
+
+    startTime: z
+      .string()
+      .regex(
+        TIME_PATTERN,
+        'Start time must use HH:mm format'
+      )
+      .optional(),
+
+    endTime: z
+      .string()
+      .regex(
+        TIME_PATTERN,
+        'End time must use HH:mm format'
+      )
+      .optional(),
+  })
+  .refine(
+    (value) =>
+      Boolean(value.time) ||
+      Boolean(value.startTime && value.endTime),
+    {
+      message:
+        'Provide an availability time (from and to hours)',
+      path: ['startTime'],
+    }
+  )
+  .refine(
+    (value) =>
+      !value.startTime ||
+      !value.endTime ||
+      value.startTime < value.endTime,
+    {
+      message:
+        'The end time must be later than the start time',
+      path: ['endTime'],
+    }
+  )
+
+/**
+ * Availability is stored as a single "HH:mm-HH:mm" range. Older callers may
+ * still send a single `time`; both forms are accepted and normalised here.
+ */
+export function normalizeAvailability(entry: {
+  day: (typeof WEEKDAYS)[number]
+  time?: string
+  startTime?: string
+  endTime?: string
+}): {
+  day: (typeof WEEKDAYS)[number]
+  time: string
+} {
+  if (entry.startTime && entry.endTime) {
+    return {
+      day: entry.day,
+      time: `${entry.startTime}-${entry.endTime}`,
+    }
+  }
+
+  return {
+    day: entry.day,
+    time: entry.time ?? '',
+  }
+}
 
 export const updateProfileSchema = z.object({
   phone: z
@@ -65,6 +133,16 @@ export const updateProfileSchema = z.object({
     .string()
     .trim()
     .min(3, 'Please enter your address'),
+
+  subcity: z.string().trim().max(120).optional(),
+
+  wereda: z.string().trim().max(120).optional(),
+
+  lastDonation: z
+    .string()
+    .trim()
+    .refine(isValidIsoDate, 'Invalid last donation date')
+    .optional(),
 
   bloodType: z.enum(BLOOD_TYPES).nullable().optional(),
 
