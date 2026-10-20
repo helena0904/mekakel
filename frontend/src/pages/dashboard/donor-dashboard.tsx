@@ -112,6 +112,46 @@ function DonorDashboard() {
               </p>
             </section>
 
+            <section className="dashboard-card">
+              <h2>Donation status</h2>
+
+              <p>
+                <span
+                  className={
+                    data.profile.activeStatus === 'ACTIVE'
+                      ? 'status-badge status-badge-approved'
+                      : 'status-badge status-badge-rejected'
+                  }
+                >
+                  {data.profile.activeStatus === 'ACTIVE'
+                    ? 'Active donor - you are able to donate'
+                    : 'Not active - you cannot donate yet'}
+                </span>
+              </p>
+
+              {data.activation &&
+                !data.activation.active &&
+                data.activation.reasons.length > 0 && (
+                  <ul className="eligibility-list">
+                    {data.activation.reasons.map((reason) => (
+                      <li key={reason}>
+                        <span className="check-fail">✕</span>
+                        <span>{reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+              {(data.profile.subcity || data.profile.wereda) && (
+                <p>
+                  Location:{' '}
+                  {[data.profile.wereda, data.profile.subcity]
+                    .filter(Boolean)
+                    .join(', ')}
+                </p>
+              )}
+            </section>
+
             <VerificationStatus
               status={data.profile.verificationStatus}
               notes={data.profile.verificationNotes}

@@ -5,7 +5,10 @@ import type {
   UpdateAvailabilityInput,
   Weekday,
 } from '../../services/donor.service'
-import { updateAvailability } from '../../services/donor.service'
+import {
+  splitTimeRange,
+  updateAvailability,
+} from '../../services/donor.service'
 
 const WEEKDAYS: Weekday[] = [
   'MONDAY',
@@ -29,7 +32,8 @@ const WEEKDAY_LABELS: Record<Weekday, string> = {
 
 interface ScheduleEntry {
   enabled: boolean
-  time: string
+  startTime: string
+  endTime: string
 }
 
 function buildInitialSchedule(
@@ -38,13 +42,22 @@ function buildInitialSchedule(
   const schedule = {} as Record<Weekday, ScheduleEntry>
 
   for (const day of WEEKDAYS) {
-    schedule[day] = { enabled: false, time: '' }
+    schedule[day] = {
+      enabled: false,
+      startTime: '',
+      endTime: '',
+    }
   }
 
   for (const availability of profile.availabilities) {
+    const { startTime, endTime } = splitTimeRange(
+      availability.time
+    )
+
     schedule[availability.day] = {
       enabled: true,
-      time: availability.time,
+      startTime,
+      endTime,
     }
   }
 
@@ -83,12 +96,16 @@ function AvailabilityForm({
     }))
   }
 
-  function setTime(day: Weekday, time: string) {
+  function setTime(
+    day: Weekday,
+    field: 'startTime' | 'endTime',
+    value: string
+  ) {
     setSchedule((previous) => ({
       ...previous,
       [day]: {
         ...previous[day],
-        time,
+        [field]: value,
       },
     }))
   }
@@ -115,14 +132,25 @@ function AvailabilityForm({
         continue
       }
 
-      if (!entry.time) {
+      if (!entry.startTime || !entry.endTime) {
         setError(
-          `Please choose a time for ${WEEKDAY_LABELS[day]}.`
+          `Please choose an available time range for ${WEEKDAY_LABELS[day]}.`
         )
         return
       }
 
-      availabilities.push({ day, time: entry.time })
+      if (entry.startTime >= entry.endTime) {
+        setError(
+          `The end time for ${WEEKDAY_LABELS[day]} must be later than the start time.`
+        )
+        return
+      }
+
+      availabilities.push({
+        day,
+        startTime: entry.startTime,
+        endTime: entry.endTime,
+      })
     }
 
     setSaving(true)
@@ -217,14 +245,30 @@ function AvailabilityForm({
               <label htmlFor={`donor-day-${day}`}>
                 {WEEKDAY_LABELS[day]}
               </label>
-              <input
-                type="time"
-                value={schedule[day].time}
-                onChange={(event) =>
-                  setTime(day, event.target.value)
-                }
-                disabled={saving || !schedule[day].enabled}
-              />
+              <span className="time-range">
+                <input
+                  type="time"
+                  aria-label={`${WEEKDAY_LABELS[day]} available from`}
+                  value={schedule[day].startTime}
+                  onChange={(event) =>
+                    setTime(day, 'startTime', event.target.value)
+                  }
+                  disabled={saving || !schedule[day].enabled}
+                />
+
+                <span className="time-range-separator">to</span>
+
+                <input
+                  type="time"
+                  aria-label={`${WEEKDAY_LABELS[day]} available to`}
+                  value={schedule[day].endTime}
+                  min={schedule[day].startTime || undefined}
+                  onChange={(event) =>
+                    setTime(day, 'endTime', event.target.value)
+                  }
+                  disabled={saving || !schedule[day].enabled}
+                />
+              </span>
             </div>
           ))}
         </div>

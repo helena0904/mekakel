@@ -25,6 +25,8 @@ export interface HospitalProfile {
   userId: number
   hospitalName: string
   address: string
+  subcity: string | null
+  wereda: string | null
   phone: string
   additionalPhone: string | null
   isVerified: boolean
@@ -54,8 +56,83 @@ export interface HospitalStaffMember {
 export interface UpdateHospitalProfileInput {
   hospitalName: string
   address: string
+  subcity?: string
+  wereda?: string
   phone: string
   additionalPhone?: string
+}
+
+export interface NearbyHospitalUnitSummary {
+  bloodType: string
+  component: string
+  availableUnits: number
+}
+
+export interface NearbyHospital {
+  id: number
+  hospitalName: string
+  address: string
+  subcity: string | null
+  wereda: string | null
+  phone: string
+  additionalPhone: string | null
+  availableUnits: number
+  unitSummary: NearbyHospitalUnitSummary[]
+}
+
+export interface NearbyDonor {
+  donorProfileId: number
+  displayName: string
+  bloodType: string | null
+  activeStatus: string
+  subcity: string | null
+  wereda: string | null
+  address: string | null
+  contactAllowed: boolean
+  contactPhone: string | null
+  lastDonation: string | null
+  nextEligibleDate: string | null
+  compatibility: {
+    compatible: boolean
+    explanation: string
+    [key: string]: unknown
+  } | null
+}
+
+export interface HospitalSearchFilters {
+  bloodType?: string
+  component?: string
+  subcity?: string
+  wereda?: string
+  q?: string
+}
+
+export interface HospitalSearchResult {
+  location: {
+    subcity: string | null
+    wereda: string | null
+  }
+  bloodType: string | null
+  component: string
+  hospitals: NearbyHospital[]
+  donors: NearbyDonor[]
+  generatedAt: string
+}
+
+export async function searchNearby(
+  filters: HospitalSearchFilters = {}
+): Promise<HospitalSearchResult> {
+  const params = new URLSearchParams()
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      params.set(key, String(value))
+    }
+  })
+
+  const query = params.toString()
+
+  return apiRequest(`/hospital/search${query ? `?${query}` : ''}`)
 }
 
 export interface CreateStaffInput {

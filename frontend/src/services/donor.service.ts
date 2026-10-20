@@ -35,6 +35,17 @@ export interface DonorAvailability {
   time: string
 }
 
+export type DonorActiveStatusValue = 'ACTIVE' | 'INACTIVE'
+
+export function splitTimeRange(time: string): {
+  startTime: string
+  endTime: string
+} {
+  const [startTime = '', endTime = ''] = time.split('-')
+
+  return { startTime, endTime }
+}
+
 export interface MedicalReport {
   id: number
   reportType: ReportType
@@ -63,6 +74,8 @@ export interface DonorProfile {
   phone: string
   additionalPhone: string | null
   address: string
+  subcity: string | null
+  wereda: string | null
   age: number
   weight: number
   height: number
@@ -73,6 +86,8 @@ export interface DonorProfile {
   verificationStatus: VerificationStatusValue
   verificationNotes: string | null
   verifiedAt: string | null
+  activeStatus: DonorActiveStatusValue
+  activationNotes: string | null
   consentToContact: boolean
   shareLocation: boolean
   matchingOptOut: boolean
@@ -105,9 +120,19 @@ export interface DonorDashboardStats {
   nextEligibleDate: string | null
 }
 
+export interface DonationActivation {
+  active: boolean
+  status: DonorActiveStatusValue
+  reasons: string[]
+  nextEligibleDate: string | null
+  daysUntilEligible: number | null
+  checks: EligibilityCheck[]
+}
+
 export interface DonorDashboardData {
   profile: DonorProfile
   eligibility: EligibilityResult
+  activation?: DonationActivation
   stats: DonorDashboardStats
 }
 
@@ -115,19 +140,28 @@ export interface UpdateProfileInput {
   phone: string
   additionalPhone?: string
   address: string
+  subcity?: string
+  wereda?: string
   bloodType?: BloodType | null
   dateOfBirth?: string
   weight: number
   height: number
+  lastDonation?: string
   donationIntervalDays?: number
   consentToContact?: boolean
   shareLocation?: boolean
   matchingOptOut?: boolean
 }
 
+export interface AvailabilityEntryInput {
+  day: Weekday
+  startTime: string
+  endTime: string
+}
+
 export interface UpdateAvailabilityInput {
   currentAvailability: AvailabilityStatus
-  availabilities: Array<{ day: Weekday; time: string }>
+  availabilities: AvailabilityEntryInput[]
 }
 
 export interface CreateDonationRecordInput {

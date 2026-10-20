@@ -26,7 +26,8 @@ function HospitalProfilePage() {
   const [error, setError] = useState('')
 
   const [hospitalName, setHospitalName] = useState('')
-  const [address, setAddress] = useState('')
+  const [subcity, setSubcity] = useState('')
+  const [wereda, setWereda] = useState('')
   const [phone, setPhone] = useState('')
   const [additionalPhone, setAdditionalPhone] = useState('')
   const [saving, setSaving] = useState(false)
@@ -46,7 +47,8 @@ function HospitalProfilePage() {
         setProfile(loaded.profile)
         setRole(loaded.role)
         setHospitalName(loaded.profile.hospitalName)
-        setAddress(loaded.profile.address)
+        setSubcity(loaded.profile.subcity ?? '')
+        setWereda(loaded.profile.wereda ?? '')
         setPhone(loaded.profile.phone)
         setAdditionalPhone(
           loaded.profile.additionalPhone ?? ''
@@ -89,7 +91,9 @@ function HospitalProfilePage() {
     try {
       const updated = await updateHospitalProfile({
         hospitalName: hospitalName.trim(),
-        address: address.trim(),
+        address: `${wereda.trim()}, ${subcity.trim()}`,
+        subcity: subcity.trim(),
+        wereda: wereda.trim(),
         phone: phone.trim(),
         additionalPhone:
           additionalPhone.trim() || undefined,
@@ -203,20 +207,38 @@ function HospitalProfilePage() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label htmlFor="hospital-address">
-                      Address
-                    </label>
-                    <input
-                      id="hospital-address"
-                      type="text"
-                      value={address}
-                      onChange={(event) =>
-                        setAddress(event.target.value)
-                      }
-                      required
-                      disabled={saving}
-                    />
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label htmlFor="hospital-subcity">
+                        Subcity
+                      </label>
+                      <input
+                        id="hospital-subcity"
+                        type="text"
+                        value={subcity}
+                        onChange={(event) =>
+                          setSubcity(event.target.value)
+                        }
+                        required
+                        disabled={saving}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="hospital-wereda">
+                        Wereda
+                      </label>
+                      <input
+                        id="hospital-wereda"
+                        type="text"
+                        value={wereda}
+                        onChange={(event) =>
+                          setWereda(event.target.value)
+                        }
+                        required
+                        disabled={saving}
+                      />
+                    </div>
                   </div>
 
                   <div className="form-group">

@@ -40,6 +40,7 @@ function BloodUnitForm({
   const editing = Boolean(unit)
 
   const [bagId, setBagId] = useState(unit?.bagId ?? '')
+  const [quantity, setQuantity] = useState('1')
   const [bloodType, setBloodType] = useState<BloodType>(
     unit?.bloodType ?? 'O_POSITIVE'
   )
@@ -110,6 +111,14 @@ function BloodUnitForm({
         confirmationStatus,
         storageLocation: storageLocation.trim() || undefined,
         storageNotes: storageNotes.trim() || undefined,
+        ...(editing
+          ? {}
+          : {
+              quantity: Math.max(
+                1,
+                Math.min(500, Number(quantity) || 1)
+              ),
+            }),
       }
 
       const saved = editing
@@ -201,6 +210,29 @@ function BloodUnitForm({
             </select>
           </div>
         </div>
+
+        {!editing && (
+          <div className="form-group">
+            <label htmlFor="unit-quantity">
+              Units to share (quantity)
+            </label>
+            <input
+              id="unit-quantity"
+              type="number"
+              min="1"
+              max="500"
+              value={quantity}
+              onChange={(event) =>
+                setQuantity(event.target.value)
+              }
+              disabled={saving}
+            />
+            <small>
+              Add the number of compatible units available to
+              share. Multiple units receive numbered bag IDs.
+            </small>
+          </div>
+        )}
 
         <div className="form-row">
           <div className="form-group">
