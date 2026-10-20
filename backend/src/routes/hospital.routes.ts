@@ -12,6 +12,8 @@ router.get('/dashboard', hospitalController.getDashboard)
 router.get('/profile', hospitalController.getProfile)
 router.put('/profile', hospitalController.putProfile)
 
+router.get('/search', hospitalController.searchNearby)
+
 router.get('/staff', hospitalController.getStaff)
 router.post('/staff', hospitalController.postStaff)
 router.patch('/staff/:id', hospitalController.patchStaff)

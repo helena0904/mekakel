@@ -45,6 +45,11 @@ enum DonorAvailability {
   UNAVAILABLE
 }
 
+enum DonorActiveStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum ReportType {
   IMAGE
   PDF
@@ -165,6 +170,7 @@ enum NotificationType {
   DONOR_VERIFICATION_APPROVED
   DONOR_VERIFICATION_REJECTED
   DONOR_ADDITIONAL_INFO_REQUIRED
+  HOSPITAL_REGISTERED
   HOSPITAL_APPROVED
   HOSPITAL_REJECTED
   HOSPITAL_SUSPENDED
@@ -268,6 +274,8 @@ model DonorProfile {
   phone                String
   additionalPhone      String?
   address              String
+  subcity              String?
+  wereda               String?
   age                  Int
   weight               Float
   height               Float
@@ -278,6 +286,8 @@ model DonorProfile {
   verificationStatus   VerificationStatus @default(PENDING)
   verificationNotes    String?
   verifiedAt           DateTime?
+  activeStatus         DonorActiveStatus  @default(INACTIVE)
+  activationNotes      String?
   consentToContact     Boolean            @default(false)
   shareLocation        Boolean            @default(false)
   matchingOptOut       Boolean            @default(false)
@@ -310,6 +320,8 @@ model HospitalProfile {
   userId           Int            @unique
   hospitalName     String
   address          String
+  subcity          String?
+  wereda           String?
   phone            String
   additionalPhone  String?
   isVerified       Boolean        @default(false)

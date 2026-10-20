@@ -127,6 +127,16 @@ describe('POST /api/auth/register - individual donor', () => {
     expect(user!.donorProfile!.verificationStatus).toBe('PENDING')
     expect(user!.donorProfile!.faydaId).toBe(fields.faydaId)
     expect(user!.donorProfile!.medicalReports).toHaveLength(1)
+
+    const welcome = await prisma.notification.findFirst({
+      where: { userId: user!.id },
+    })
+
+    expect(welcome).toMatchObject({
+      type: 'DONOR_REGISTERED',
+      recipientEmail: fields.email,
+      subject: 'Welcome to MEKAKEL',
+    })
   })
 
   it('rejects missing required donor information (no age)', async () => {
@@ -273,6 +283,16 @@ describe('POST /api/auth/register - hospital', () => {
     ).resolves.toBe(true)
     expect(user!.hospitalProfile).not.toBeNull()
     expect(user!.hospitalProfile!.isVerified).toBe(false)
+
+    const welcome = await prisma.notification.findFirst({
+      where: { userId: user!.id },
+    })
+
+    expect(welcome).toMatchObject({
+      type: 'HOSPITAL_REGISTERED',
+      recipientEmail: fields.email,
+      subject: 'Welcome to MEKAKEL',
+    })
   })
 
   it('rejects missing required hospital information', async () => {

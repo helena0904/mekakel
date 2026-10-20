@@ -19,8 +19,10 @@ import type {
   HospitalAccess,
   HospitalStaffRoleValue,
 } from '../services/hospital.service'
+import { searchNearbyHospitalsAndDonors } from '../services/hospital-search.service'
 import {
   createStaffSchema,
+  hospitalSearchQuerySchema,
   reviewHospitalSchema,
   updateHospitalProfileSchema,
   updateStaffSchema,
@@ -193,6 +195,50 @@ export async function putProfile(
 
     return res.status(500).json({
       message: 'Unable to update hospital profile',
+    })
+  }
+}
+
+export async function searchNearby(
+  req: AuthRequest,
+  res: Response
+) {
+  const access = await ensureHospital(req, res)
+
+  if (!access) {
+    return
+  }
+
+  const parsed = hospitalSearchQuerySchema.safeParse(
+    req.query
+  )
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message:
+        parsed.error.issues[0]?.message ??
+        'Invalid search filters',
+    })
+  }
+
+  try {
+    const result = await searchNearbyHospitalsAndDonors(
+      access.hospitalProfileId,
+      parsed.data
+    )
+
+    if (!result) {
+      return res.status(404).json({
+        message: 'Hospital profile not found',
+      })
+    }
+
+    return res.status(200).json(result)
+  } catch (error) {
+    console.error('Hospital nearby search error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to search nearby donors and hospitals',
     })
   }
 }

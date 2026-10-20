@@ -196,7 +196,7 @@ const AUTOMATED_STATUSES = [
   'EXPIRED',
 ]
 
-export function createUnit(
+export async function createUnits(
   hospitalProfileId: number,
   userId: number,
   data: CreateBloodUnitInput
@@ -206,41 +206,49 @@ export function createUnit(
   const confirmationStatus =
     data.confirmationStatus ?? 'PENDING'
   const expiryDate = new Date(data.expiryDate)
+  const quantity = data.quantity ?? 1
 
-  return prisma.bloodUnit.create({
-    data: {
-      hospitalProfileId,
-      bagId: data.bagId,
-      bloodType: data.bloodType,
-      component: data.component ?? 'RED_CELLS',
-      collectionDate: new Date(data.collectionDate),
-      expiryDate,
+  const status = deriveUnitStatus(
+    {
       screeningStatus,
       confirmationStatus,
-      status: deriveUnitStatus(
-        {
-          screeningStatus,
-          confirmationStatus,
-          expiryDate,
-        },
-        now
-      ),
-      storageLocation: data.storageLocation || null,
-      storageNotes: data.storageNotes || null,
-      screenedBy: SCREENED_STATUSES.includes(screeningStatus)
-        ? userId
-        : null,
-      screenedAt: SCREENED_STATUSES.includes(screeningStatus)
+      expiryDate,
+    },
+    now
+  )
+
+  const rows = Array.from({ length: quantity }, (_, index) => ({
+    hospitalProfileId,
+    bagId:
+      quantity > 1
+        ? `${data.bagId}-${index + 1}`
+        : data.bagId,
+    bloodType: data.bloodType,
+    component: data.component ?? 'RED_CELLS',
+    collectionDate: new Date(data.collectionDate),
+    expiryDate,
+    screeningStatus,
+    confirmationStatus,
+    status,
+    storageLocation: data.storageLocation || null,
+    storageNotes: data.storageNotes || null,
+    screenedBy: SCREENED_STATUSES.includes(screeningStatus)
+      ? userId
+      : null,
+    screenedAt: SCREENED_STATUSES.includes(screeningStatus)
+      ? now
+      : null,
+    confirmedAt:
+      confirmationStatus === 'CONFIRMED' ||
+      confirmationStatus === 'REJECTED'
         ? now
         : null,
-      confirmedAt:
-        confirmationStatus === 'CONFIRMED' ||
-        confirmationStatus === 'REJECTED'
-          ? now
-          : null,
-      createdByUserId: userId,
-    },
-  })
+    createdByUserId: userId,
+  }))
+
+  return prisma.$transaction(
+    rows.map((row) => prisma.bloodUnit.create({ data: row }))
+  )
 }
 
 async function assertStockEditable(unitId: number) {

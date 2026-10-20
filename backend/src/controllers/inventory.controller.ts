@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client'
 import type { AuthRequest } from '../middleware/auth.middleware'
 import { isAppError } from '../lib/errors'
 import {
-  createUnit,
+  createUnits,
   deleteUnit,
   findUnit,
   getExpiryAlerts,
@@ -212,22 +212,30 @@ export async function postUnit(
   }
 
   try {
-    const unit = await createUnit(
+    const units = await createUnits(
       access.hospitalProfileId,
       req.user!.userId,
       parsed.data
     )
 
+    const unit = units[0]
+
     auditInventory(
       req,
       'INVENTORY_UNIT_CREATED',
       unit.id,
-      `Blood unit ${unit.bagId} added`
+      units.length > 1
+        ? `${units.length} blood units added (${unit.bagId}...)`
+        : `Blood unit ${unit.bagId} added`
     )
 
     return res.status(201).json({
-      message: 'Blood unit added',
+      message:
+        units.length > 1
+          ? `${units.length} blood units added`
+          : 'Blood unit added',
       unit: serializeUnit(unit),
+      units: units.map((row) => serializeUnit(row)),
     })
   } catch (error) {
     if (isAppError(error)) {

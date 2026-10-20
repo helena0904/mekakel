@@ -58,6 +58,125 @@ const MIN_WEIGHT_KG = 50
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
+ * The three criteria the platform uses to mark a donor as active:
+ *   - age is at least 18
+ *   - weight is at least 50 kg
+ *   - at least 90 days have passed since the last donation
+ *
+ * When any criterion fails the donor is marked inactive; as soon as all
+ * three are met again the donor is reactivated automatically.
+ */
+export const ACTIVATION_MIN_AGE = 18
+export const ACTIVATION_MIN_WEIGHT_KG = 50
+export const ACTIVATION_INTERVAL_DAYS = 90
+
+export interface DonationActivationProfileInput {
+  dateOfBirth: Date | null
+  weight: number
+  lastDonation: Date | null
+  donationIntervalDays?: number | null
+}
+
+export interface DonationActivationResult {
+  active: boolean
+  status: 'ACTIVE' | 'INACTIVE'
+  reasons: string[]
+  nextEligibleDate: string | null
+  daysUntilEligible: number | null
+  checks: EligibilityCheck[]
+}
+
+export function computeDonationActivation(
+  profile: DonationActivationProfileInput,
+  donationDates: Date[] = [],
+  now: Date = new Date()
+): DonationActivationResult {
+  const age = calculateAge(profile.dateOfBirth, now)
+  const agePassed = age !== null && age >= ACTIVATION_MIN_AGE
+  const weightPassed = profile.weight >= ACTIVATION_MIN_WEIGHT_KG
+
+  const interval =
+    profile.donationIntervalDays &&
+    profile.donationIntervalDays > 0
+      ? profile.donationIntervalDays
+      : ACTIVATION_INTERVAL_DAYS
+
+  const latest = latestDonationDate(
+    profile.lastDonation,
+    donationDates
+  )
+
+  let nextEligibleDate: string | null = null
+  let daysUntilEligible: number | null = null
+  let intervalPassed = true
+
+  if (latest) {
+    const nextEligible = new Date(
+      latest.getTime() + interval * DAY_MS
+    )
+
+    if (nextEligible > now) {
+      intervalPassed = false
+      nextEligibleDate = nextEligible.toISOString().slice(0, 10)
+      daysUntilEligible = Math.ceil(
+        (nextEligible.getTime() - now.getTime()) / DAY_MS
+      )
+    }
+  }
+
+  const checks: EligibilityCheck[] = [
+    {
+      key: 'age',
+      label: `Age at least ${ACTIVATION_MIN_AGE}`,
+      passed: agePassed,
+      detail:
+        age === null
+          ? 'Date of birth is missing.'
+          : `You are ${age} years old.`,
+    },
+    {
+      key: 'weight',
+      label: `Weigh at least ${ACTIVATION_MIN_WEIGHT_KG} kg`,
+      passed: weightPassed,
+      detail: `Your recorded weight is ${profile.weight} kg.`,
+    },
+    {
+      key: 'interval',
+      label: `At least ${interval} days since the last donation`,
+      passed: intervalPassed,
+      detail: intervalPassed
+        ? 'Enough time has passed since your last donation.'
+        : `You can donate again on ${nextEligibleDate}.`,
+    },
+  ]
+
+  const reasons = checks
+    .filter((check) => !check.passed)
+    .map((check) => check.detail)
+
+  const active = agePassed && weightPassed && intervalPassed
+
+  return {
+    active,
+    status: active ? 'ACTIVE' : 'INACTIVE',
+    reasons,
+    nextEligibleDate,
+    daysUntilEligible,
+    checks,
+  }
+}
+
+export function activationNotes(
+  result: DonationActivationResult
+): string | null {
+  if (result.active) {
+    return null
+  }
+
+  return result.reasons.join(' ')
+}
+
+/**
  * Configurable screening thresholds. Defaults mirror national blood-service
  * guidance and can be adjusted through organization settings.
  */
