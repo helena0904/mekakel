@@ -12,7 +12,6 @@ function Home() {
  <p>  MEKAKEL connects hospitals, clinics, and verified volunteer donors to help find nearby blood resources when they are needed.</p>
                         
  <div className="hero-buttons">
-  <Link to="/register"><button>Find Blood now</button></Link>
   <Link to="/login"><button>Become a Donor</button></Link>
   </div>
 </div>
@@ -137,13 +136,6 @@ function Home() {
 <section className="call-to-action">
 <h2>Help Make Blood Coordination Easier</h2>
  <p> Whether you are a donor or a healthcare facility, MEKAKEL helps connect the right people and resources when they are needed.</p>
-
-<div className="hero-buttons">
-
-<button>join as a donor</button>
-
-<button>Register Your Facility</button>
-</div>
 </section>
 </main>
 

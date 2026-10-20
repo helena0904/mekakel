@@ -35,8 +35,8 @@ body {
 .logo {
     width: 50px;
     height: 50px;
-    border-radius: 50%;
-    object-fit: cover;
+    border-radius: 6px;
+    object-fit: contain;
 }
 
 .navigationlinks {
@@ -127,10 +127,6 @@ body {
 
 .hero-buttons button:hover {
     background-color: #004494;
-}
-
-.hero-buttons button:nth-child(2) {
-    background-color: #28a745;
 }
 
 
@@ -269,10 +265,6 @@ body {
 .call-to-action p {
     font-size: 18px;
     margin-bottom: 25px;
-}
-
-.call-to-action .hero-buttons {
-    justify-content: center;
 }
 
 

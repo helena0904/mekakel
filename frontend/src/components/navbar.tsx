@@ -6,7 +6,7 @@ import {
 } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { dashboardPathForUser } from '../utils/dashboard'
-import logo from '../assets/logo-placeholder.jpg'
+import logo from '../assets/logo.png'
 
 function Navbar() {
   const { user, token, logout } = useAuth()
