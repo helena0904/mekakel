@@ -69,6 +69,7 @@ interface UnitOverrides {
   expiryDate?: Date
   screeningStatus?: string
   confirmationStatus?: string
+  bloodTypeConfirmed?: boolean
   status?: string
 }
 
@@ -93,6 +94,10 @@ async function addUnit(
         'PASSED') as never,
       confirmationStatus: (overrides.confirmationStatus ??
         'CONFIRMED') as never,
+      bloodTypeConfirmed:
+        overrides.bloodTypeConfirmed ??
+        (overrides.confirmationStatus ?? 'CONFIRMED') ===
+          'CONFIRMED',
       status: (overrides.status ?? 'AVAILABLE') as never,
       storageLocation: 'Fridge A',
     },

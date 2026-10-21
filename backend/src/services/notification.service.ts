@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 
 import prisma from '../lib/prisma'
+import { isUndeliverableEmail } from '../lib/email-domain'
 import { renderWorkflowEmail, sendEmail } from './email.service'
 import type { WorkflowEmailContext } from './email.service'
 import { categoryForType } from '../validators/notification.schema'
@@ -13,6 +14,14 @@ import type {
 } from '../validators/notification.schema'
 
 export const DEFAULT_MAX_ATTEMPTS = 3
+
+// The test fixtures use reserved `.test` addresses, so disable the delivery
+// domain guard while running the automated suite.
+const shouldCheckEmailDomain = process.env.NODE_ENV !== 'test'
+
+function cannotReceiveEmail(email: string): boolean {
+  return shouldCheckEmailDomain && isUndeliverableEmail(email)
+}
 
 // Base backoff applied between delivery attempts. The actual delay grows
 // linearly with the attempt count so a failing SMTP server is not hammered.
@@ -135,6 +144,7 @@ export async function queueNotification(
   const enabled =
     preferences.emailEnabled &&
     preferences[categoryColumn(category)]
+  const deliverable = !cannotReceiveEmail(user.email)
 
   const rendered = renderWorkflowEmail(input.type, {
     recipientName: user.name,
@@ -149,7 +159,12 @@ export async function queueNotification(
     subject: rendered.subject,
     body: rendered.text,
     html: rendered.html,
-    status: enabled ? 'PENDING' : 'SUPPRESSED',
+    status:
+      enabled && deliverable ? 'PENDING' : 'SUPPRESSED',
+    lastError:
+      enabled && !deliverable
+        ? 'Recipient email domain cannot receive mail'
+        : null,
     maxAttempts: input.maxAttempts ?? DEFAULT_MAX_ATTEMPTS,
     dedupeKey: input.dedupeKey ?? null,
     relatedEntityType: input.relatedEntityType ?? null,
@@ -241,6 +256,25 @@ export async function deliverNotification(
     return {
       status:
         notification.status as NotificationStatusValue,
+      attempts: notification.attempts,
+    }
+  }
+
+  // Do not attempt delivery to reserved or fake domains such as test.com;
+  // the resulting bounce would be permanent and just creates noise.
+  if (cannotReceiveEmail(notification.recipientEmail)) {
+    await prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        status: 'SUPPRESSED',
+        lastAttemptAt: now,
+        lastError:
+          'Recipient email domain cannot receive mail',
+      },
+    })
+
+    return {
+      status: 'SUPPRESSED',
       attempts: notification.attempts,
     }
   }

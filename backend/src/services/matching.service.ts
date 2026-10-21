@@ -151,6 +151,7 @@ export async function matchRequest(
         status: 'AVAILABLE',
         screeningStatus: 'PASSED',
         confirmationStatus: 'CONFIRMED',
+        bloodTypeConfirmed: true,
         expiryDate: { gte: now },
         reservations: {
           none: {

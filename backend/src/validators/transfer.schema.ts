@@ -24,16 +24,6 @@ export const createTransferSchema = z
       .number()
       .int()
       .positive('A destination hospital is required'),
-
-    reservationId: z.coerce
-      .number()
-      .int()
-      .positive()
-      .optional(),
-
-    reason: z.string().trim().max(500).optional(),
-
-    notes: z.string().trim().max(1000).optional(),
   })
   .refine(
     (value) => value.toHospitalProfileId > 0,

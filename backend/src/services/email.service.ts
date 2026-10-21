@@ -1,8 +1,16 @@
 import nodemailer from 'nodemailer'
 
+import { isUndeliverableEmail } from '../lib/email-domain'
 import type { NotificationTypeValue } from '../validators/notification.schema'
 
 const RESET_EXPIRY_MINUTES = 15
+
+function cannotReceiveEmail(email: string): boolean {
+  return (
+    process.env.NODE_ENV !== 'test' &&
+    isUndeliverableEmail(email)
+  )
+}
 
 function requiredEnv(name: string): string {
   const value = process.env[name]?.trim()
@@ -65,6 +73,10 @@ export interface EmailMessage {
 export async function sendEmail(
   message: EmailMessage
 ): Promise<void> {
+  if (cannotReceiveEmail(message.to)) {
+    return
+  }
+
   const from = requiredEnv('SMTP_FROM')
   const transporter = createEmailTransporter()
 
@@ -80,6 +92,8 @@ export async function sendEmail(
 export interface WorkflowEmailContext {
   recipientName?: string
   hospitalName?: string
+  hospitalPhone?: string
+  hospitalAddress?: string
   otherHospitalName?: string
   unitBagId?: string
   bloodType?: string
@@ -200,6 +214,22 @@ export function renderWorkflowEmail(
           : []),
         'Please update your profile or medical report in your donor dashboard.',
       ]
+      break
+
+    case 'DONOR_BLOOD_REQUESTED':
+      subject = 'Urgent blood donation request'
+      lines = [
+        `${context.hospitalName ?? 'A hospital'} needs blood now and has requested your help.`,
+        describeUnit(context),
+        ...(context.hospitalAddress
+          ? [`Hospital address: ${context.hospitalAddress}`]
+          : []),
+        ...(context.hospitalPhone
+          ? [`Please contact the hospital on ${context.hospitalPhone} as soon as you can.`]
+          : [
+              'Please check the hospital details in your MEKAKEL notifications and contact them as soon as you can.',
+            ]),
+      ].filter(Boolean)
       break
 
     case 'HOSPITAL_REGISTERED':
@@ -383,6 +413,10 @@ export async function sendPasswordResetEmail(
   email: string,
   token: string
 ): Promise<void> {
+  if (cannotReceiveEmail(email)) {
+    return
+  }
+
   const from = requiredEnv('SMTP_FROM')
   const frontendUrl = requiredEnv('FRONTEND_URL')
 

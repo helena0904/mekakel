@@ -51,7 +51,8 @@ export const createBloodUnitSchema = z
       .string()
       .trim()
       .min(1, 'Bag ID is required')
-      .max(64, 'Bag ID is too long'),
+      .max(64, 'Bag ID is too long')
+      .optional(),
 
     bloodType: z.enum(BLOOD_TYPES),
 
@@ -66,6 +67,8 @@ export const createBloodUnitSchema = z
     confirmationStatus: z
       .enum(CONFIRMATION_STATUSES)
       .optional(),
+
+    bloodTypeConfirmed: z.boolean().optional(),
 
     status: z.enum(BLOOD_UNIT_STATUSES).optional(),
 
@@ -106,6 +109,8 @@ export const updateBloodUnitSchema = z.object({
   confirmationStatus: z
     .enum(CONFIRMATION_STATUSES)
     .optional(),
+
+  bloodTypeConfirmed: z.boolean().optional(),
 
   status: z.enum(BLOOD_UNIT_STATUSES).optional(),
 

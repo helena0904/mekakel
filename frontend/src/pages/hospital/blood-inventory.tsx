@@ -226,8 +226,9 @@ function BloodInventoryPage() {
             <h2>Stock summary</h2>
 
             <p className="section-description">
-              Only screened, confirmed and unexpired units
-              count as available stock.
+              Every unit is recorded as screened and
+              confirmed. Expired units are automatically
+              removed from available stock.
             </p>
 
             <div className="table-wrapper">
@@ -238,8 +239,6 @@ function BloodInventoryPage() {
                     <th>Total</th>
                     <th>Available</th>
                     <th>Expired</th>
-                    <th>Pending screening</th>
-                    <th>Pending confirmation</th>
                   </tr>
                 </thead>
 
@@ -252,8 +251,6 @@ function BloodInventoryPage() {
                       <td>{type.totalUnits}</td>
                       <td>{type.availableUnits}</td>
                       <td>{type.expiredUnits}</td>
-                      <td>{type.pendingScreening}</td>
-                      <td>{type.pendingConfirmation}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -264,12 +261,6 @@ function BloodInventoryPage() {
                     <td>{summary.totals.totalUnits}</td>
                     <td>{summary.totals.availableUnits}</td>
                     <td>{summary.totals.expiredUnits}</td>
-                    <td>
-                      {summary.totals.pendingScreening}
-                    </td>
-                    <td>
-                      {summary.totals.pendingConfirmation}
-                    </td>
                   </tr>
                 </tfoot>
               </table>

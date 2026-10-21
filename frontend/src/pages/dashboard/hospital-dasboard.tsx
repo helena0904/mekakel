@@ -128,23 +128,13 @@ function HospitalDashboard() {
                   </Link>
                 </li>
                 <li>
+                  <Link to="/hospital/inventory">
+                    Blood inventory management
+                  </Link>
+                </li>
+                <li>
                   <Link to="/hospital/search">
                     Search nearby donors and hospitals
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/hospital/inventory">
-                    Blood inventory and expiry alerts
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/hospital/requests">
-                    Blood requests and matching sources
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/hospital/reservations">
-                    Reserved units and donor responses
                   </Link>
                 </li>
                 <li>

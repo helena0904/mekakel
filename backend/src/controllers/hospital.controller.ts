@@ -1,12 +1,16 @@
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 import type { Response } from 'express'
 import { Prisma } from '@prisma/client'
 
 import type { AuthRequest } from '../middleware/auth.middleware'
+import { REPORT_DIR } from '../middleware/upload.middleware'
 import {
   createStaff,
   deleteStaff,
   findStaffMember,
   getHospitalById,
+  isHospitalApproved,
   listHospitals,
   listStaff,
   notifyHospitalReview,
@@ -19,7 +23,12 @@ import type {
   HospitalAccess,
   HospitalStaffRoleValue,
 } from '../services/hospital.service'
-import { searchNearbyHospitalsAndDonors } from '../services/hospital-search.service'
+import {
+  findDonorReportForHospital,
+  getNearbyDonorDetail,
+  requestDonorBlood,
+  searchNearbyHospitalsAndDonors,
+} from '../services/hospital-search.service'
 import {
   createStaffSchema,
   hospitalSearchQuerySchema,
@@ -27,11 +36,21 @@ import {
   updateHospitalProfileSchema,
   updateStaffSchema,
 } from '../validators/hospital.schema'
-import { actorFromRequest } from '../services/audit.service'
+import {
+  actorFromRequest,
+  recordAuditSafely,
+} from '../services/audit.service'
 
 const CAN_MANAGE: HospitalStaffRoleValue[] = [
   'OWNER',
   'ADMIN',
+]
+
+const CAN_REQUEST_BLOOD: HospitalStaffRoleValue[] = [
+  'OWNER',
+  'ADMIN',
+  'MANAGER',
+  'TECHNICIAN',
 ]
 
 async function ensureHospital(
@@ -239,6 +258,170 @@ export async function searchNearby(
 
     return res.status(500).json({
       message: 'Unable to search nearby donors and hospitals',
+    })
+  }
+}
+
+export async function getDonorDetail(
+  req: AuthRequest,
+  res: Response
+) {
+  const access = await ensureHospital(req, res)
+
+  if (!access) {
+    return
+  }
+
+  const donorProfileId = Number(req.params.id)
+
+  if (!Number.isInteger(donorProfileId) || donorProfileId <= 0) {
+    return res.status(400).json({
+      message: 'Invalid donor id',
+    })
+  }
+
+  try {
+    const donor = await getNearbyDonorDetail(donorProfileId)
+
+    if (!donor) {
+      return res.status(404).json({
+        message: 'Donor not found',
+      })
+    }
+
+    return res.status(200).json({ donor })
+  } catch (error) {
+    console.error('Get nearby donor detail error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to load donor details',
+    })
+  }
+}
+
+export async function postDonorBloodRequest(
+  req: AuthRequest,
+  res: Response
+) {
+  const access = await ensureHospital(req, res)
+
+  if (!access) {
+    return
+  }
+
+  if (!isHospitalApproved(access)) {
+    return res.status(403).json({
+      message:
+        'Hospital approval is required before requesting donors',
+    })
+  }
+
+  if (!CAN_REQUEST_BLOOD.includes(access.role)) {
+    return res.status(403).json({
+      message:
+        'Your hospital role does not allow requesting donors',
+    })
+  }
+
+  const donorProfileId = Number(req.params.id)
+
+  if (!Number.isInteger(donorProfileId) || donorProfileId <= 0) {
+    return res.status(400).json({
+      message: 'Invalid donor id',
+    })
+  }
+
+  try {
+    const result = await requestDonorBlood(
+      access.hospitalProfileId,
+      donorProfileId
+    )
+
+    if (!result) {
+      return res.status(404).json({
+        message: 'Donor not found',
+      })
+    }
+
+    void recordAuditSafely({
+      ...actorFromRequest(req),
+      action: 'DONOR_BLOOD_REQUESTED',
+      entityType: 'DonorProfile',
+      entityId: result.donorProfileId,
+      summary: `Urgent blood request sent to ${result.donorName}`,
+    })
+
+    return res.status(201).json({
+      message: 'Donor notified that blood is needed',
+      request: result,
+    })
+  } catch (error) {
+    console.error('Request donor blood error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to notify the donor',
+    })
+  }
+}
+
+export async function getDonorReportFile(
+  req: AuthRequest,
+  res: Response
+) {
+  const access = await ensureHospital(req, res)
+
+  if (!access) {
+    return
+  }
+
+  const reportId = Number(req.params.id)
+
+  if (!Number.isInteger(reportId) || reportId <= 0) {
+    return res.status(400).json({
+      message: 'Invalid report id',
+    })
+  }
+
+  try {
+    const report = await findDonorReportForHospital(reportId)
+
+    if (!report) {
+      return res.status(404).json({
+        message: 'Report not found',
+      })
+    }
+
+    const filePath = path.join(
+      REPORT_DIR,
+      path.basename(report.fileUrl)
+    )
+
+    if (!existsSync(filePath)) {
+      return res.status(404).json({
+        message: 'Report file is no longer available',
+      })
+    }
+
+    void recordAuditSafely({
+      ...actorFromRequest(req),
+      action: 'MEDICAL_REPORT_ACCESSED',
+      entityType: 'MedicalReport',
+      entityId: report.id,
+      summary: `Medical report ${report.id} opened from hospital search`,
+    })
+
+    res.setHeader('Cache-Control', 'private, no-store')
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${path.basename(filePath)}"`
+    )
+
+    return res.sendFile(filePath)
+  } catch (error) {
+    console.error('Open hospital donor report error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to open the medical report',
     })
   }
 }

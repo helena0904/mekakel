@@ -38,7 +38,7 @@ beforeEach(resetDatabase)
 afterAll(disconnectDatabase)
 
 describe('inventory screening restrictions', () => {
-  it('hides unscreened units from available stock until both checks pass', async () => {
+  it('records newly added units as screened, confirmed and available', async () => {
     const hospital = await approvedHospital()
 
     const created = await request(app)
@@ -47,35 +47,44 @@ describe('inventory screening restrictions', () => {
       .send(createUnitBody())
 
     expect(created.status).toBe(201)
-    expect(created.body.unit.screeningStatus).toBe('PENDING')
-    expect(created.body.unit.isAvailable).toBe(false)
+    expect(created.body.unit.screeningStatus).toBe('PASSED')
+    expect(created.body.unit.confirmationStatus).toBe(
+      'CONFIRMED'
+    )
+    expect(created.body.unit.bloodTypeConfirmed).toBe(true)
+    expect(created.body.unit.isAvailable).toBe(true)
 
     const availableOnly = await request(app)
       .get('/api/inventory?availability=available')
       .set('Authorization', auth(hospital.token))
 
-    expect(availableOnly.body.units).toHaveLength(0)
+    expect(availableOnly.body.units).toHaveLength(1)
+  })
 
-    const promoted = await request(app)
-      .put(`/api/inventory/${created.body.unit.id}`)
-      .set('Authorization', auth(hospital.token))
-      .send({
-        screeningStatus: 'PASSED',
-        confirmationStatus: 'CONFIRMED',
-      })
+  it('does not offer units whose blood type is not confirmed', async () => {
+    const hospital = await approvedHospital()
 
-    expect(promoted.status).toBe(200)
-    expect(promoted.body.unit.screeningStatus).toBe('PASSED')
-    expect(promoted.body.unit.confirmationStatus).toBe(
-      'CONFIRMED'
+    const unconfirmed = await addUnit(
+      hospital.hospitalProfileId,
+      {
+        bloodType: 'O_NEGATIVE',
+        bloodTypeConfirmed: false,
+      }
     )
-    expect(promoted.body.unit.isAvailable).toBe(true)
 
-    const nowAvailable = await request(app)
+    const detail = await request(app)
+      .get(`/api/inventory/${unconfirmed.id}`)
+      .set('Authorization', auth(hospital.token))
+
+    expect(detail.status).toBe(200)
+    expect(detail.body.unit.bloodTypeConfirmed).toBe(false)
+    expect(detail.body.unit.isAvailable).toBe(false)
+
+    const available = await request(app)
       .get('/api/inventory?availability=available')
       .set('Authorization', auth(hospital.token))
 
-    expect(nowAvailable.body.units).toHaveLength(1)
+    expect(available.body.units).toHaveLength(0)
   })
 
   it('counts pending screening and confirmation in the summary', async () => {
@@ -373,6 +382,31 @@ describe('inventory role enforcement', () => {
       .set('Authorization', auth(hospital.token))
 
     expect(listed.body.units).toHaveLength(3)
+  })
+
+  it('generates a system bag ID when none is supplied', async () => {
+    const hospital = await approvedHospital()
+
+    const body = createUnitBody({ quantity: 2 })
+    delete body.bagId
+
+    const created = await request(app)
+      .post('/api/inventory')
+      .set('Authorization', auth(hospital.token))
+      .send(body)
+
+    expect(created.status).toBe(201)
+    expect(created.body.units).toHaveLength(2)
+
+    const bagIds = created.body.units.map(
+      (unit: { bagId: string }) => unit.bagId
+    )
+
+    expect(bagIds[0]).toMatch(/^BAG-\d{8}-[A-F0-9]{8}-1$/)
+    expect(bagIds[1]).toMatch(/^BAG-\d{8}-[A-F0-9]{8}-2$/)
+    expect(bagIds[0].replace(/-1$/, '')).toBe(
+      bagIds[1].replace(/-2$/, '')
+    )
   })
 
   it('rejects a quantity outside the supported range', async () => {

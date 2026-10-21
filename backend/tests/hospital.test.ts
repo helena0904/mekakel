@@ -76,6 +76,7 @@ function validUnitBody(
     expiryDate: isoDaysFromNow(30),
     screeningStatus: 'PASSED',
     confirmationStatus: 'CONFIRMED',
+    bloodTypeConfirmed: true,
     storageLocation: 'Fridge A',
     ...overrides,
   }

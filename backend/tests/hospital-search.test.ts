@@ -78,6 +78,14 @@ describe('hospital nearby search', () => {
     expect(response.body.hospitals[0].unitSummary).toEqual([
       { bloodType: 'O_NEGATIVE', component: 'RED_CELLS', availableUnits: 2 },
     ])
+    expect(response.body.hospitals[0].unitDetails).toHaveLength(2)
+    expect(response.body.hospitals[0].unitDetails[0]).toMatchObject({
+      bloodType: 'O_NEGATIVE',
+      component: 'RED_CELLS',
+    })
+    expect(response.body.hospitals[0].unitDetails[0].bagId).toMatch(/^BAG-/)
+    expect(response.body.hospitals[0].unitDetails[0].collectionDate).toBeDefined()
+    expect(response.body.hospitals[0].unitDetails[0].expiryDate).toBeDefined()
   })
 
   it('excludes incompatible blood types when a blood type is requested', async () => {
@@ -97,6 +105,7 @@ describe('hospital nearby search', () => {
     expect(response.body.hospitals).toHaveLength(1)
     expect(response.body.hospitals[0].availableUnits).toBe(0)
     expect(response.body.hospitals[0].unitSummary).toEqual([])
+    expect(response.body.hospitals[0].unitDetails).toEqual([])
   })
 
   it('returns nearby donors and respects each donor privacy choice', async () => {
@@ -192,6 +201,81 @@ describe('hospital nearby search', () => {
     expect(response.body.donors).toHaveLength(1)
     expect(response.body.donors[0].donorProfileId).toBe(donor.id)
     expect(response.body.donors[0].bloodType).toBeNull()
+  })
+
+  it('returns donor details with medical reports but never the Fayda ID', async () => {
+    const viewer = await approvedHospital()
+    await locateHospital(viewer.hospitalProfileId, 'Bole', 'Woreda 03')
+
+    const donor = await addDonor({
+      bloodType: 'O_NEGATIVE',
+      consentToContact: true,
+      shareLocation: true,
+    })
+    await prisma.donorProfile.update({
+      where: { id: donor.id },
+      data: {
+        activeStatus: 'ACTIVE',
+        subcity: 'Bole',
+        wereda: 'Woreda 03',
+      },
+    })
+
+    const donorUser = await prisma.user.findUniqueOrThrow({
+      where: { id: donor.userId },
+    })
+
+    const report = await prisma.medicalReport.create({
+      data: {
+        donorProfileId: donor.id,
+        uploadedByUserId: donor.userId,
+        reportType: 'IMAGE',
+        fileUrl: 'test-report.png',
+        verificationStatus: 'VERIFIED',
+      },
+    })
+
+    const response = await request(app)
+      .get(`/api/hospital/donors/${donor.id}`)
+      .set('Authorization', auth(viewer.token))
+
+    expect(response.status).toBe(200)
+    expect(response.body.donor.donorProfileId).toBe(donor.id)
+    expect(response.body.donor.displayName).toBe(donorUser.name)
+    expect(response.body.donor.faydaId).toBeUndefined()
+    expect(response.body.donor.medicalReports).toHaveLength(1)
+    expect(response.body.donor.medicalReports[0].id).toBe(report.id)
+    expect(response.body.donor.medicalReports[0].fileUrl).toBeUndefined()
+  })
+
+  it('sends a one-click urgent blood request notification to a donor', async () => {
+    const viewer = await approvedHospital()
+    await locateHospital(viewer.hospitalProfileId, 'Bole', 'Woreda 03')
+
+    const donor = await addDonor({
+      bloodType: 'O_NEGATIVE',
+      consentToContact: true,
+    })
+
+    const response = await request(app)
+      .post(`/api/hospital/donors/${donor.id}/request`)
+      .set('Authorization', auth(viewer.token))
+
+    expect(response.status).toBe(201)
+    expect(response.body.request.donorProfileId).toBe(donor.id)
+
+    const notification =
+      await prisma.notification.findFirst({
+        where: {
+          userId: donor.userId,
+          type: 'DONOR_BLOOD_REQUESTED',
+        },
+      })
+
+    expect(notification).not.toBeNull()
+    expect(notification?.subject).toMatch(/blood/i)
+    expect(notification?.body).toMatch(/needs blood now/i)
+    expect(notification?.category).toBe('DONOR')
   })
 
   it('rejects individual accounts', async () => {

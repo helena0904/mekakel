@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import { Prisma, type BloodUnitStatus } from '@prisma/client'
 
 import { AppError } from '../lib/errors'
@@ -21,6 +23,7 @@ export interface SerializableBloodUnit {
   expiryDate: Date
   screeningStatus: string
   confirmationStatus: string
+  bloodTypeConfirmed: boolean
   status: string
   storageLocation: string | null
   storageNotes: string | null
@@ -47,7 +50,10 @@ export function isExpired(
 
 type StockFields = Pick<
   SerializableBloodUnit,
-  'screeningStatus' | 'confirmationStatus' | 'expiryDate'
+  | 'screeningStatus'
+  | 'confirmationStatus'
+  | 'bloodTypeConfirmed'
+  | 'expiryDate'
 >
 
 export function isEligibleStock(
@@ -57,6 +63,7 @@ export function isEligibleStock(
   return (
     unit.screeningStatus === 'PASSED' &&
     unit.confirmationStatus === 'CONFIRMED' &&
+    unit.bloodTypeConfirmed &&
     !isExpired(unit, now)
   )
 }
@@ -141,6 +148,7 @@ function buildWhere(
   if (availability) {
     where.screeningStatus = 'PASSED'
     where.confirmationStatus = 'CONFIRMED'
+    where.bloodTypeConfirmed = true
   } else {
     if (filters.screeningStatus) {
       where.screeningStatus = filters.screeningStatus
@@ -188,6 +196,17 @@ export function findUnit(
   })
 }
 
+function generateBagId(now: Date): string {
+  const date = now
+    .toISOString()
+    .slice(0, 10)
+    .replaceAll('-', '')
+
+  return `BAG-${date}-${randomUUID()
+    .slice(0, 8)
+    .toUpperCase()}`
+}
+
 const SCREENED_STATUSES = ['PASSED', 'FAILED']
 
 const AUTOMATED_STATUSES = [
@@ -202,16 +221,28 @@ export async function createUnits(
   data: CreateBloodUnitInput
 ) {
   const now = new Date()
-  const screeningStatus = data.screeningStatus ?? 'PENDING'
-  const confirmationStatus =
-    data.confirmationStatus ?? 'PENDING'
+  const screeningStatus = data.screeningStatus ?? 'PASSED'
+  let confirmationStatus =
+    data.confirmationStatus ?? 'CONFIRMED'
+  const bloodTypeConfirmed =
+    data.bloodTypeConfirmed ??
+    confirmationStatus === 'CONFIRMED'
   const expiryDate = new Date(data.expiryDate)
   const quantity = data.quantity ?? 1
+  const bagId = data.bagId ?? generateBagId(now)
+
+  if (
+    data.bloodTypeConfirmed === true &&
+    data.confirmationStatus === undefined
+  ) {
+    confirmationStatus = 'CONFIRMED'
+  }
 
   const status = deriveUnitStatus(
     {
       screeningStatus,
       confirmationStatus,
+      bloodTypeConfirmed,
       expiryDate,
     },
     now
@@ -221,14 +252,15 @@ export async function createUnits(
     hospitalProfileId,
     bagId:
       quantity > 1
-        ? `${data.bagId}-${index + 1}`
-        : data.bagId,
+        ? `${bagId}-${index + 1}`
+        : bagId,
     bloodType: data.bloodType,
     component: data.component ?? 'RED_CELLS',
     collectionDate: new Date(data.collectionDate),
     expiryDate,
     screeningStatus,
     confirmationStatus,
+    bloodTypeConfirmed,
     status,
     storageLocation: data.storageLocation || null,
     storageNotes: data.storageNotes || null,
@@ -239,7 +271,7 @@ export async function createUnits(
       ? now
       : null,
     confirmedAt:
-      confirmationStatus === 'CONFIRMED' ||
+      bloodTypeConfirmed ||
       confirmationStatus === 'REJECTED'
         ? now
         : null,
@@ -307,6 +339,7 @@ export async function updateUnit(
   const stockFieldsChanged = [
     data.screeningStatus,
     data.confirmationStatus,
+    data.bloodTypeConfirmed,
     data.expiryDate,
     data.status,
   ].some((value) => value !== undefined)
@@ -328,14 +361,32 @@ export async function updateUnit(
   const now = new Date()
   const screeningStatus =
     data.screeningStatus ?? existing.screeningStatus
-  const confirmationStatus =
+  let confirmationStatus =
     data.confirmationStatus ?? existing.confirmationStatus
+  let bloodTypeConfirmed =
+    data.bloodTypeConfirmed ?? existing.bloodTypeConfirmed
   const expiryDate = data.expiryDate
     ? new Date(data.expiryDate)
     : existing.expiryDate
 
+  if (data.bloodTypeConfirmed !== undefined) {
+    confirmationStatus = data.bloodTypeConfirmed
+      ? 'CONFIRMED'
+      : existing.confirmationStatus === 'REJECTED'
+        ? 'REJECTED'
+        : 'PENDING'
+  } else if (data.confirmationStatus !== undefined) {
+    bloodTypeConfirmed =
+      data.confirmationStatus === 'CONFIRMED'
+  }
+
   let status: BloodUnitStatus = deriveUnitStatus(
-    { screeningStatus, confirmationStatus, expiryDate },
+    {
+      screeningStatus,
+      confirmationStatus,
+      bloodTypeConfirmed,
+      expiryDate,
+    },
     now,
     existing.status
   )
@@ -349,8 +400,10 @@ export async function updateUnit(
     data.screeningStatus !== existing.screeningStatus
 
   const confirmationChanged =
-    data.confirmationStatus !== undefined &&
-    data.confirmationStatus !== existing.confirmationStatus
+    (data.confirmationStatus !== undefined &&
+      data.confirmationStatus !== existing.confirmationStatus) ||
+    (data.bloodTypeConfirmed !== undefined &&
+      data.bloodTypeConfirmed !== existing.bloodTypeConfirmed)
 
   return prisma.bloodUnit.update({
     where: { id: unitId },
@@ -365,7 +418,16 @@ export async function updateUnit(
         ? expiryDate
         : undefined,
       screeningStatus: data.screeningStatus,
-      confirmationStatus: data.confirmationStatus,
+      confirmationStatus:
+        data.bloodTypeConfirmed !== undefined ||
+        data.confirmationStatus !== undefined
+          ? confirmationStatus
+          : undefined,
+      bloodTypeConfirmed:
+        data.bloodTypeConfirmed ??
+        (data.confirmationStatus !== undefined
+          ? bloodTypeConfirmed
+          : undefined),
       status,
       storageLocation:
         data.storageLocation === undefined
@@ -433,6 +495,7 @@ export async function getSummary(hospitalProfileId: number) {
       status: true,
       screeningStatus: true,
       confirmationStatus: true,
+      bloodTypeConfirmed: true,
       expiryDate: true,
     },
   })
@@ -474,7 +537,7 @@ export async function getSummary(hospitalProfileId: number) {
       summary.pendingScreening += 1
     }
 
-    if (unit.confirmationStatus !== 'CONFIRMED') {
+    if (!unit.bloodTypeConfirmed) {
       summary.pendingConfirmation += 1
     }
   }

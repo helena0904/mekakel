@@ -397,35 +397,9 @@ export async function createTransfer(
       throw new AppError('Blood unit not found', 404)
     }
 
-    let reservationId = data.reservationId ?? null
+    let reservationId: number | null = null
 
-    if (reservationId) {
-      const reservation = await tx.reservation.findFirst({
-        where: {
-          id: reservationId,
-          hospitalProfileId: fromHospitalProfileId,
-          bloodUnitId: unit.id,
-        },
-        select: { id: true, status: true },
-      })
-
-      if (!reservation) {
-        throw new AppError(
-          'Reservation not found for this unit',
-          404
-        )
-      }
-
-      if (
-        reservation.status !== 'ACTIVE' &&
-        reservation.status !== 'CONFIRMED'
-      ) {
-        throw new AppError(
-          'Only active reservations can be transferred',
-          409
-        )
-      }
-    } else if (unit.status === 'RESERVED') {
+    if (unit.status === 'RESERVED') {
       const activeReservation = await tx.reservation.findFirst({
         where: {
           bloodUnitId: unit.id,
@@ -444,7 +418,7 @@ export async function createTransfer(
       )
     ) {
       throw new AppError(
-        'Only screened, confirmed and unexpired units can be transferred',
+        'Only units with confirmed blood type, confirmed-negative screening and an unexpired expiry date can be transferred',
         409
       )
     }
@@ -456,6 +430,7 @@ export async function createTransfer(
           status: 'AVAILABLE',
           screeningStatus: 'PASSED',
           confirmationStatus: 'CONFIRMED',
+          bloodTypeConfirmed: true,
           expiryDate: { gt: now },
         },
         data: { status: 'RESERVED' },
@@ -481,8 +456,6 @@ export async function createTransfer(
         toHospitalProfileId: data.toHospitalProfileId,
         reservationId,
         status: 'REQUESTED',
-        reason: data.reason || null,
-        notes: data.notes || null,
         requestedByUserId: userId,
       },
     })
@@ -510,8 +483,7 @@ export async function createTransfer(
   await notifyTransferCounterpart(
     serialized,
     fromHospitalProfileId,
-    'TRANSFER_REQUESTED',
-    data.reason ?? undefined
+    'TRANSFER_REQUESTED'
   )
 
   return serialized

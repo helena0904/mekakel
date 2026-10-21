@@ -27,6 +27,11 @@ export type AuditActionValue =
   | 'RESERVATION_RELEASED'
   | 'RESERVATION_CONSUMED'
   | 'RESERVATION_EXPIRED'
+  | 'DONOR_RESPONSE_RECORDED'
+  | 'MEDICAL_REPORT_ACCESSED'
+  | 'DONOR_BLOOD_REQUESTED'
+  | 'CONSENT_CHANGED'
+  | 'EMERGENCY_OVERRIDE_USED'
   | 'TRANSFER_REQUESTED'
   | 'TRANSFER_APPROVED'
   | 'TRANSFER_REJECTED'
@@ -221,6 +226,11 @@ export const AUDIT_ACTION_LABELS: Record<
   RESERVATION_RELEASED: 'Reservation released',
   RESERVATION_CONSUMED: 'Reservation consumed',
   RESERVATION_EXPIRED: 'Reservation expired',
+  DONOR_RESPONSE_RECORDED: 'Donor response recorded',
+  MEDICAL_REPORT_ACCESSED: 'Medical report accessed',
+  DONOR_BLOOD_REQUESTED: 'Donor blood requested',
+  CONSENT_CHANGED: 'Consent changed',
+  EMERGENCY_OVERRIDE_USED: 'Emergency override used',
   TRANSFER_REQUESTED: 'Transfer requested',
   TRANSFER_APPROVED: 'Transfer approved',
   TRANSFER_REJECTED: 'Transfer rejected',
