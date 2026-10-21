@@ -21,18 +21,21 @@ import {
   getUnits,
 } from '../../services/inventory.service'
 import type { BloodUnit } from '../../services/inventory.service'
-import { getReservations } from '../../services/reservation.service'
-import type { Reservation } from '../../services/reservation.service'
 import {
   BLOOD_TYPE_LABELS,
   formatDate,
 } from '../../services/donor.service'
+import type { BloodType } from '../../services/donor.service'
 import { getHospitalProfile } from '../../services/hospital.service'
 import type { HospitalStaffRoleValue } from '../../services/hospital.service'
 
 const STATUS_OPTIONS = Object.keys(
   TRANSFER_STATUS_LABELS
 ) as TransferStatusValue[]
+
+const BLOOD_TYPE_OPTIONS = Object.keys(
+  BLOOD_TYPE_LABELS
+) as BloodType[]
 
 function TransfersPage() {
   const [role, setRole] =
@@ -42,21 +45,16 @@ function TransfersPage() {
 
   const [transfers, setTransfers] = useState<Transfer[]>([])
   const [units, setUnits] = useState<BloodUnit[]>([])
-  const [reservations, setReservations] = useState<
-    Reservation[]
-  >([])
   const [destinations, setDestinations] = useState<
     TransferDestination[]
   >([])
 
   const [filters, setFilters] = useState<TransferFilters>({})
 
+  const [bloodType, setBloodType] = useState<BloodType | ''>('')
   const [bloodUnitId, setBloodUnitId] = useState('')
-  const [reservationId, setReservationId] = useState('')
   const [toHospitalProfileId, setToHospitalProfileId] =
     useState('')
-  const [reason, setReason] = useState('')
-  const [notes, setNotes] = useState('')
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -67,23 +65,28 @@ function TransfersPage() {
 
   const selectableUnits = units.filter(
     (unit) =>
-      unit.status === 'AVAILABLE' || unit.status === 'RESERVED'
+      (unit.status === 'AVAILABLE' ||
+        unit.status === 'RESERVED') &&
+      unit.screeningStatus === 'PASSED' &&
+      unit.bloodTypeConfirmed &&
+      !unit.isExpired
+  )
+
+  const selectableUnitsByType = selectableUnits.filter(
+    (unit) => unit.bloodType === bloodType
+  )
+
+  const selectedUnit = selectableUnitsByType.find(
+    (unit) => String(unit.id) === bloodUnitId
   )
 
   async function reloadFormOptions() {
-    const [loadedUnits, activeReservations, loadedDestinations] =
-      await Promise.all([
-        getUnits({ availability: 'all' }),
-        getReservations({ status: 'ACTIVE' }),
-        getTransferDestinations(),
-      ])
+    const [loadedUnits, loadedDestinations] = await Promise.all([
+      getUnits({ availability: 'all' }),
+      getTransferDestinations(),
+    ])
 
     setUnits(loadedUnits)
-    setReservations(
-      activeReservations.filter(
-        (reservation) => reservation.bloodUnit !== null
-      )
-    )
     setDestinations(loadedDestinations)
   }
 
@@ -119,17 +122,12 @@ function TransfersPage() {
 
     void (async () => {
       try {
-        const [
-          loadedTransfers,
-          loadedUnits,
-          activeReservations,
-          loadedDestinations,
-        ] = await Promise.all([
-          getTransfers(filters),
-          getUnits({ availability: 'all' }),
-          getReservations({ status: 'ACTIVE' }),
-          getTransferDestinations(),
-        ])
+        const [loadedTransfers, loadedUnits, loadedDestinations] =
+          await Promise.all([
+            getTransfers(filters),
+            getUnits({ availability: 'all' }),
+            getTransferDestinations(),
+          ])
 
         if (cancelled) {
           return
@@ -137,11 +135,6 @@ function TransfersPage() {
 
         setTransfers(loadedTransfers)
         setUnits(loadedUnits)
-        setReservations(
-          activeReservations.filter(
-            (reservation) => reservation.bloodUnit !== null
-          )
-        )
         setDestinations(loadedDestinations)
       } catch (err) {
         if (!cancelled) {
@@ -172,8 +165,10 @@ function TransfersPage() {
       return
     }
 
-    if (!bloodUnitId || !toHospitalProfileId) {
-      setError('Select a blood unit and a destination hospital')
+    if (!bloodType || !bloodUnitId || !toHospitalProfileId) {
+      setError(
+        'Select the blood type, blood ID and destination hospital'
+      )
       return
     }
 
@@ -185,19 +180,12 @@ function TransfersPage() {
       await createTransfer({
         bloodUnitId: Number(bloodUnitId),
         toHospitalProfileId: Number(toHospitalProfileId),
-        reservationId: reservationId
-          ? Number(reservationId)
-          : undefined,
-        reason: reason.trim() || undefined,
-        notes: notes.trim() || undefined,
       })
 
       setSuccess('Transfer requested.')
+      setBloodType('')
       setBloodUnitId('')
-      setReservationId('')
       setToHospitalProfileId('')
-      setReason('')
-      setNotes('')
 
       const loaded = await getTransfers(filters)
       setTransfers(loaded)
@@ -256,8 +244,35 @@ function TransfersPage() {
 
               <div className="form-row">
                 <div className="form-group">
+                  <label htmlFor="transfer-blood-type">
+                    Blood type
+                  </label>
+                  <select
+                    id="transfer-blood-type"
+                    value={bloodType}
+                    onChange={(event) => {
+                      setBloodType(
+                        event.target.value as BloodType | ''
+                      )
+                      setBloodUnitId('')
+                    }}
+                    required
+                    disabled={saving}
+                  >
+                    <option value="">
+                      Select the blood type
+                    </option>
+                    {BLOOD_TYPE_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {BLOOD_TYPE_LABELS[option]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
                   <label htmlFor="transfer-unit">
-                    Blood unit
+                    Blood ID
                   </label>
                   <select
                     id="transfer-unit"
@@ -266,15 +281,16 @@ function TransfersPage() {
                       setBloodUnitId(event.target.value)
                     }
                     required
-                    disabled={saving}
+                    disabled={saving || !bloodType}
                   >
                     <option value="">
-                      Select an available or reserved unit
+                      {bloodType
+                        ? 'Select a blood ID'
+                        : 'Select a blood type first'}
                     </option>
-                    {selectableUnits.map((unit) => (
+                    {selectableUnitsByType.map((unit) => (
                       <option key={unit.id} value={unit.id}>
                         {unit.bagId} ·{' '}
-                        {BLOOD_TYPE_LABELS[unit.bloodType]} ·{' '}
                         {
                           BLOOD_COMPONENT_LABELS[
                             unit.component
@@ -284,6 +300,24 @@ function TransfersPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label htmlFor="transfer-collection-date">
+                    Collection date
+                  </label>
+                  <input
+                    id="transfer-collection-date"
+                    type="date"
+                    value={
+                      selectedUnit
+                        ? selectedUnit.collectionDate.slice(0, 10)
+                        : ''
+                    }
+                    readOnly
+                  />
                 </div>
 
                 <div className="form-group">
@@ -311,63 +345,6 @@ function TransfersPage() {
                       </option>
                     ))}
                   </select>
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="transfer-reservation">
-                  Linked reservation (optional)
-                </label>
-                <select
-                  id="transfer-reservation"
-                  value={reservationId}
-                  onChange={(event) =>
-                    setReservationId(event.target.value)
-                  }
-                  disabled={saving}
-                >
-                  <option value="">No linked reservation</option>
-                  {reservations.map((reservation) => (
-                    <option
-                      key={reservation.id}
-                      value={reservation.id}
-                    >
-                      #{reservation.id} ·{' '}
-                      {reservation.bloodUnit?.bagId ?? '—'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label htmlFor="transfer-reason">
-                    Reason
-                  </label>
-                  <input
-                    id="transfer-reason"
-                    type="text"
-                    value={reason}
-                    onChange={(event) =>
-                      setReason(event.target.value)
-                    }
-                    disabled={saving}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="transfer-notes">
-                    Notes
-                  </label>
-                  <input
-                    id="transfer-notes"
-                    type="text"
-                    value={notes}
-                    onChange={(event) =>
-                      setNotes(event.target.value)
-                    }
-                    disabled={saving}
-                  />
                 </div>
               </div>
 

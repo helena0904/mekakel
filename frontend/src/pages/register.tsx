@@ -1,4 +1,10 @@
-import { useMemo, useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { login, register } from '../services/auth.service'
 import { verifyFayda } from '../services/fayda.service'
@@ -70,6 +76,7 @@ function Register() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
+  const errorRef = useRef<HTMLDivElement>(null)
 
   const [faydaId, setFaydaId] = useState('')
   const [fullName, setFullName] = useState('')
@@ -124,6 +131,26 @@ function Register() {
   const [hospitalPassword, setHospitalPassword] = useState('')
   const [hospitalConfirmPassword, setHospitalConfirmPassword] =
     useState('')
+
+  // Redirect as soon as a session exists. This covers registration, automatic
+  // sign-in and any session restored by the AuthProvider, so every account
+  // type always lands on the dashboard that matches its role.
+  useEffect(() => {
+    if (user && token) {
+      navigate(dashboardPathForUser(user), { replace: true })
+    }
+  }, [user, token, navigate])
+
+  // Validation problems are rendered at the top of the form, so bring them
+  // into view when a submission fails.
+  useEffect(() => {
+    if (error) {
+      errorRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }
+  }, [error])
 
   const today = new Date().toISOString().split('T')[0]
   const currentYear = new Date().getFullYear()
@@ -352,9 +379,41 @@ function Register() {
       return
     }
 
+    // If the donor did not press "Verify Identity" first, verify now instead
+    // of blocking the submission with no progress.
     if (!faydaVerified) {
-      setError('Please verify your identity before registering.')
-      return
+      setIsVerifyingFayda(true)
+
+      try {
+        const result = await verifyFayda({
+          faydaId: faydaId.trim(),
+          fullName: fullName.trim(),
+          dateOfBirth,
+        })
+
+        if (!result.success || result.simulated !== true) {
+          setFaydaMessage(result.message)
+          setFaydaMessageType('error')
+          setError(
+            result.message ||
+              'Identity verification failed. Please try again.',
+          )
+          return
+        }
+
+        setFaydaVerified(true)
+        setFaydaMessage(result.message)
+        setFaydaMessageType('success')
+      } catch (verificationError) {
+        setError(
+          verificationError instanceof Error
+            ? verificationError.message
+            : 'Verification failed. Please try again.',
+        )
+        return
+      } finally {
+        setIsVerifyingFayda(false)
+      }
     }
 
     const calculatedAge = calculateAge(dateOfBirth)
@@ -699,7 +758,11 @@ function Register() {
           </p>
 
           <form className="register-form" onSubmit={handleHospitalSubmit}>
-            {error && <div className="register-error">{error}</div>}
+            {error && (
+              <div className="register-error" role="alert" ref={errorRef}>
+                {error}
+              </div>
+            )}
 
             {successMessage && (
               <div className="register-success">{successMessage}</div>
@@ -931,11 +994,7 @@ function Register() {
             <button
               type="submit"
               className="register-button"
-              disabled={
-                isSubmitting ||
-                !hospitalPasswordIsStrong ||
-                !hospitalPasswordsMatch
-              }
+              disabled={isSubmitting}
             >
               {isSubmitting
                 ? 'Creating Account...'
@@ -974,7 +1033,11 @@ function Register() {
         </p>
 
         <form className="register-form" onSubmit={handleDonorSubmit}>
-          {error && <div className="register-error">{error}</div>}
+          {error && (
+            <div className="register-error" role="alert" ref={errorRef}>
+              {error}
+            </div>
+          )}
 
           <section className="form-section">
             <h2>1. Identity Information</h2>
@@ -1673,18 +1736,13 @@ function Register() {
           <button
             type="submit"
             className="register-button"
-            disabled={
-              isSubmitting ||
-              !passwordIsStrong ||
-              !passwordsMatch ||
-              !availabilityIsValid ||
-              !faydaVerified ||
-              !medicalReportConsent
-            }
+            disabled={isSubmitting || isVerifyingFayda}
           >
             {isSubmitting
               ? 'Creating Account...'
-              : 'Submit Donor Registration'}
+              : isVerifyingFayda
+                ? 'Verifying Identity...'
+                : 'Submit Donor Registration'}
           </button>
 
           <button

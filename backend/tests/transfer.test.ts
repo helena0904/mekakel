@@ -74,6 +74,7 @@ async function addUnit(
       screeningStatus: (overrides.screeningStatus ??
         'PASSED') as never,
       confirmationStatus: 'CONFIRMED',
+      bloodTypeConfirmed: true,
       status: (overrides.status ?? 'AVAILABLE') as never,
     },
   })

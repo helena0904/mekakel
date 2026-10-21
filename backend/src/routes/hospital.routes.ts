@@ -13,6 +13,15 @@ router.get('/profile', hospitalController.getProfile)
 router.put('/profile', hospitalController.putProfile)
 
 router.get('/search', hospitalController.searchNearby)
+router.get('/donors/:id', hospitalController.getDonorDetail)
+router.post(
+  '/donors/:id/request',
+  hospitalController.postDonorBloodRequest
+)
+router.get(
+  '/reports/:id/file',
+  hospitalController.getDonorReportFile
+)
 
 router.get('/staff', hospitalController.getStaff)
 router.post('/staff', hospitalController.postStaff)

@@ -58,9 +58,6 @@ export interface Transfer {
 export interface TransferInput {
   bloodUnitId: number
   toHospitalProfileId: number
-  reservationId?: number
-  reason?: string
-  notes?: string
 }
 
 export interface TransferFilters {

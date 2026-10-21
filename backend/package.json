@@ -8,7 +8,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "test": "jest --runInBand",
-    "e2e:reset": "tsx scripts/e2e-reset.ts"
+    "e2e:reset": "tsx scripts/e2e-reset.ts",
+    "seed:demo": "tsx scripts/seed-demo-staff.ts"
   },
   "keywords": [],
   "author": "",

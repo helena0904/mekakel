@@ -42,6 +42,7 @@ export interface BloodUnit {
   expiryDate: string
   screeningStatus: ScreeningStatusValue
   confirmationStatus: ConfirmationStatusValue
+  bloodTypeConfirmed: boolean
   status: BloodUnitStatusValue
   storageLocation: string | null
   storageNotes: string | null
@@ -81,13 +82,14 @@ export interface InventorySummary {
 }
 
 export interface BloodUnitInput {
-  bagId: string
+  bagId?: string
   bloodType: BloodType
   component?: BloodComponent
   collectionDate: string
   expiryDate: string
   screeningStatus?: ScreeningStatusValue
   confirmationStatus?: ConfirmationStatusValue
+  bloodTypeConfirmed?: boolean
   status?: BloodUnitStatusValue
   storageLocation?: string
   storageNotes?: string
@@ -196,7 +198,7 @@ export const SCREENING_STATUS_LABELS: Record<
 > = {
   NOT_TESTED: 'Not tested',
   PENDING: 'Not screened',
-  PASSED: 'Screened',
+  PASSED: 'Confirmed negative',
   FAILED: 'Screening failed',
 }
 

@@ -102,6 +102,7 @@ function addUnit(hospitalProfileId: number) {
       expiryDate: new Date(Date.now() + 30 * DAY),
       screeningStatus: 'PASSED',
       confirmationStatus: 'CONFIRMED',
+      bloodTypeConfirmed: true,
       status: 'AVAILABLE',
     },
   })

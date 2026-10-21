@@ -4,6 +4,7 @@ import prisma from '../lib/prisma'
 import { AppError, isAppError } from '../lib/errors'
 import {
   isAvailableStock,
+  isEligibleStock,
   isExpired,
   serializeUnit,
 } from './inventory.service'
@@ -151,10 +152,11 @@ export function resolveTargetUnitStatus(
   unit: {
     screeningStatus: string
     confirmationStatus: string
+    bloodTypeConfirmed: boolean
     expiryDate: Date
   },
   now: Date
-): 'AVAILABLE' | 'EXPIRED' | 'DISCARDED' {
+): 'AVAILABLE' | 'EXPIRED' | 'DISCARDED' | 'PENDING' {
   if (
     unit.screeningStatus === 'FAILED' ||
     unit.confirmationStatus === 'REJECTED'
@@ -164,6 +166,10 @@ export function resolveTargetUnitStatus(
 
   if (isExpired(unit, now)) {
     return 'EXPIRED'
+  }
+
+  if (!isEligibleStock(unit, now)) {
+    return 'PENDING'
   }
 
   return 'AVAILABLE'
@@ -319,6 +325,7 @@ export async function createReservation(
               status: 'AVAILABLE',
               screeningStatus: 'PASSED',
               confirmationStatus: 'CONFIRMED',
+              bloodTypeConfirmed: true,
               expiryDate: { gt: now },
             },
             data: { status: 'RESERVED' },

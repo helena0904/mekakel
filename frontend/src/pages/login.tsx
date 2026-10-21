@@ -1,4 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+} from 'react'
 import {
   Link,
   Navigate,
@@ -9,7 +13,44 @@ import { useAuth } from '../hooks/useAuth'
 import { login } from '../services/auth.service'
 import { dashboardPathForUser } from '../utils/dashboard'
 
-type LoginType = 'individual' | 'hospital' | null
+type LoginType =
+  | 'individual'
+  | 'hospital'
+  | 'doctor'
+  | 'admin'
+  | null
+
+const LOGIN_OPTIONS: Record<
+  Exclude<LoginType, null>,
+  {
+    heading: string
+    accountType: 'INDIVIDUAL' | 'HOSPITAL'
+    requiredRole?: string
+    roleError?: string
+  }
+> = {
+  individual: {
+    heading: 'Individual Donor Login',
+    accountType: 'INDIVIDUAL',
+  },
+  hospital: {
+    heading: 'Hospital / Clinic Login',
+    accountType: 'HOSPITAL',
+  },
+  doctor: {
+    heading: 'Clinical Reviewer Login',
+    accountType: 'INDIVIDUAL',
+    requiredRole: 'DOCTOR',
+    roleError:
+      'This account does not have clinical reviewer access.',
+  },
+  admin: {
+    heading: 'Administrator Login',
+    accountType: 'INDIVIDUAL',
+    requiredRole: 'ADMIN',
+    roleError: 'This account does not have administrator access.',
+  },
+}
 
 function Login() {
   const [loginType, setLoginType] = useState<LoginType>(null)
@@ -28,6 +69,15 @@ function Login() {
         registrationSuccess?: boolean
       } | null
     )?.registrationSuccess === true
+
+  // Redirect as soon as a session exists. This covers a successful login as
+  // well as a session restored by the AuthProvider, so every account type
+  // always lands on the dashboard that matches its role.
+  useEffect(() => {
+    if (user && token) {
+      navigate(dashboardPathForUser(user), { replace: true })
+    }
+  }, [user, token, navigate])
 
   // An already signed-in user should never see the login page; send them
   // straight to the dashboard that matches their account type.
@@ -50,17 +100,24 @@ function Login() {
     setError('')
     setLoading(true)
 
-    try {
-      const accountType =
-        loginType === 'individual'
-          ? 'INDIVIDUAL'
-          : 'HOSPITAL'
+    const option = LOGIN_OPTIONS[loginType]
 
+    try {
       const response = await login({
         email: email.trim().toLowerCase(),
         password,
-        accountType,
+        accountType: option.accountType,
       })
+
+      if (
+        option.requiredRole &&
+        response.user.role !== option.requiredRole
+      ) {
+        throw new Error(
+          option.roleError ??
+            'This account cannot access that dashboard.'
+        )
+      }
 
       loginUser(response.token, response.user)
 
@@ -129,6 +186,28 @@ function Login() {
               >
                 Hospital / Clinic
               </button>
+
+              <button
+                type="button"
+                className="login-choice-button"
+                onClick={() => {
+                  setLoginType('doctor')
+                  setError('')
+                }}
+              >
+                Clinical Reviewer
+              </button>
+
+              <button
+                type="button"
+                className="login-choice-button"
+                onClick={() => {
+                  setLoginType('admin')
+                  setError('')
+                }}
+              >
+                Administrator
+              </button>
             </div>
 
             <p className="login-link">
@@ -140,11 +219,7 @@ function Login() {
           </>
         ) : (
           <>
-            <h2>
-              {loginType === 'individual'
-                ? 'Individual Donor Login'
-                : 'Hospital / Clinic Login'}
-            </h2>
+            <h2>{LOGIN_OPTIONS[loginType].heading}</h2>
 
             <form onSubmit={handleLogin}>
               <div className="login-form-group">

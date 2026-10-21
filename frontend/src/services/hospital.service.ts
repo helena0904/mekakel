@@ -1,4 +1,4 @@
-import apiRequest from './api'
+import apiRequest, { API_URL } from './api'
 
 export type HospitalStatusValue =
   | 'PENDING'
@@ -68,6 +68,16 @@ export interface NearbyHospitalUnitSummary {
   availableUnits: number
 }
 
+export interface NearbyHospitalUnitDetail {
+  id: number
+  bagId: string
+  bloodType: string
+  component: string
+  collectionDate: string
+  expiryDate: string
+  storageLocation: string | null
+}
+
 export interface NearbyHospital {
   id: number
   hospitalName: string
@@ -78,6 +88,7 @@ export interface NearbyHospital {
   additionalPhone: string | null
   availableUnits: number
   unitSummary: NearbyHospitalUnitSummary[]
+  unitDetails: NearbyHospitalUnitDetail[]
 }
 
 export interface NearbyDonor {
@@ -97,6 +108,50 @@ export interface NearbyDonor {
     explanation: string
     [key: string]: unknown
   } | null
+}
+
+export interface HospitalDonorReport {
+  id: number
+  reportType: 'IMAGE' | 'PDF'
+  verificationStatus: string
+  createdAt: string
+  verifiedAt: string | null
+  rejectionReason: string | null
+}
+
+export interface HospitalDonorDonation {
+  id: number
+  donatedAt: string
+  facilityName: string | null
+  units: number | null
+  notes: string | null
+}
+
+export interface HospitalDonorDetail {
+  donorProfileId: number
+  displayName: string
+  email: string | null
+  bloodType: string | null
+  dateOfBirth: string | null
+  age: number
+  weight: number
+  height: number
+  subcity: string | null
+  wereda: string | null
+  address: string | null
+  phone: string | null
+  additionalPhone: string | null
+  contactAllowed: boolean
+  currentAvailability: string
+  activeStatus: string
+  verificationStatus: string
+  verifiedAt: string | null
+  lastDonation: string | null
+  nextEligibleDate: string | null
+  donationIntervalDays: number
+  medicalReports: HospitalDonorReport[]
+  donationHistory: HospitalDonorDonation[]
+  availabilities: Array<{ day: string; time: string }>
 }
 
 export interface HospitalSearchFilters {
@@ -133,6 +188,59 @@ export async function searchNearby(
   const query = params.toString()
 
   return apiRequest(`/hospital/search${query ? `?${query}` : ''}`)
+}
+
+export async function getNearbyDonorDetail(
+  donorProfileId: number
+): Promise<HospitalDonorDetail> {
+  const response = await apiRequest<{
+    donor: HospitalDonorDetail
+  }>(`/hospital/donors/${donorProfileId}`)
+
+  return response.donor
+}
+
+export async function requestDonorBlood(
+  donorProfileId: number
+): Promise<{
+  donorProfileId: number
+  donorName: string
+  notificationId: number | null
+}> {
+  const response = await apiRequest<{
+    request: {
+      donorProfileId: number
+      donorName: string
+      notificationId: number | null
+    }
+  }>(`/hospital/donors/${donorProfileId}/request`, {
+    method: 'POST',
+  })
+
+  return response.request
+}
+
+export async function fetchDonorReportObjectUrl(
+  reportId: number
+): Promise<string> {
+  const token = localStorage.getItem('token')
+
+  const response = await fetch(
+    `${API_URL}/hospital/reports/${reportId}/file`,
+    {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : undefined,
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error('Unable to open the medical report')
+  }
+
+  const blob = await response.blob()
+
+  return URL.createObjectURL(blob)
 }
 
 export interface CreateStaffInput {

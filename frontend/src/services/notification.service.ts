@@ -17,6 +17,7 @@ export type NotificationTypeValue =
   | 'DONOR_VERIFICATION_APPROVED'
   | 'DONOR_VERIFICATION_REJECTED'
   | 'DONOR_ADDITIONAL_INFO_REQUIRED'
+  | 'DONOR_BLOOD_REQUESTED'
   | 'HOSPITAL_APPROVED'
   | 'HOSPITAL_REJECTED'
   | 'HOSPITAL_SUSPENDED'
@@ -180,7 +181,7 @@ export const NOTIFICATION_PREFERENCE_LABELS: Array<{
     key: 'donorUpdates',
     label: 'Donor updates',
     description:
-      'Registration and verification status updates.',
+      'Registration, verification and urgent blood request updates.',
   },
   {
     key: 'hospitalUpdates',

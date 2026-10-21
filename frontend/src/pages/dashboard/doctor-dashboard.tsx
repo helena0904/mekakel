@@ -41,7 +41,7 @@ function DoctorDashboard() {
   return (
     <main className="dashboard-page">
       <div className="dashboard-container">
-        <h1>Clinical Reviewer Dashboard</h1>
+
 
         <p>Welcome, {user?.name}!</p>
 

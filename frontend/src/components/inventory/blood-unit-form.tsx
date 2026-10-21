@@ -8,8 +8,6 @@ import type {
   BloodComponent,
   BloodType,
   BloodUnit,
-  ConfirmationStatusValue,
-  ScreeningStatusValue,
 } from '../../services/inventory.service'
 import { BLOOD_COMPONENT_LABELS } from '../../services/inventory.service'
 import { BLOOD_TYPE_LABELS } from '../../services/donor.service'
@@ -39,7 +37,6 @@ function BloodUnitForm({
 }: BloodUnitFormProps) {
   const editing = Boolean(unit)
 
-  const [bagId, setBagId] = useState(unit?.bagId ?? '')
   const [quantity, setQuantity] = useState('1')
   const [bloodType, setBloodType] = useState<BloodType>(
     unit?.bloodType ?? 'O_POSITIVE'
@@ -52,20 +49,6 @@ function BloodUnitForm({
   )
   const [expiryDate, setExpiryDate] = useState(
     toDateInput(unit?.expiryDate)
-  )
-  const [screeningStatus, setScreeningStatus] =
-    useState<ScreeningStatusValue>(
-      unit?.screeningStatus ?? 'PENDING'
-    )
-  const [confirmationStatus, setConfirmationStatus] =
-    useState<ConfirmationStatusValue>(
-      unit?.confirmationStatus ?? 'PENDING'
-    )
-  const [storageLocation, setStorageLocation] = useState(
-    unit?.storageLocation ?? ''
-  )
-  const [storageNotes, setStorageNotes] = useState(
-    unit?.storageNotes ?? ''
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -80,11 +63,6 @@ function BloodUnitForm({
     }
 
     setError('')
-
-    if (!bagId.trim()) {
-      setError('Please enter a bag ID.')
-      return
-    }
 
     if (!collectionDate || !expiryDate) {
       setError('Please choose collection and expiry dates.')
@@ -102,15 +80,10 @@ function BloodUnitForm({
 
     try {
       const input = {
-        bagId: bagId.trim(),
         bloodType,
         component,
         collectionDate,
         expiryDate,
-        screeningStatus,
-        confirmationStatus,
-        storageLocation: storageLocation.trim() || undefined,
-        storageNotes: storageNotes.trim() || undefined,
         ...(editing
           ? {}
           : {
@@ -153,21 +126,11 @@ function BloodUnitForm({
           {editing ? 'Edit blood unit' : 'Add blood unit'}
         </h2>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="unit-bag-id">Bag ID</label>
-            <input
-              id="unit-bag-id"
-              type="text"
-              value={bagId}
-              onChange={(event) =>
-                setBagId(event.target.value)
-              }
-              required
-              disabled={saving}
-            />
-          </div>
+        <p className="section-description">
+          Blood ID: {unit?.bagId ?? 'Generated automatically when saved'}
+        </p>
 
+        <div className="form-row">
           <div className="form-group">
             <label htmlFor="unit-blood-type">
               Blood type
@@ -268,81 +231,11 @@ function BloodUnitForm({
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="unit-screening">
-              Screening status
-            </label>
-            <select
-              id="unit-screening"
-              value={screeningStatus}
-              onChange={(event) =>
-                setScreeningStatus(
-                  event.target.value as ScreeningStatusValue
-                )
-              }
-              disabled={saving}
-            >
-              <option value="NOT_TESTED">Not tested</option>
-              <option value="PENDING">Not screened</option>
-              <option value="PASSED">Screened (passed)</option>
-              <option value="FAILED">Screening failed</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="unit-confirmation">
-              Confirmation status
-            </label>
-            <select
-              id="unit-confirmation"
-              value={confirmationStatus}
-              onChange={(event) =>
-                setConfirmationStatus(
-                  event.target
-                    .value as ConfirmationStatusValue
-                )
-              }
-              disabled={saving}
-            >
-              <option value="PENDING">Unconfirmed</option>
-              <option value="CONFIRMED">Confirmed</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="unit-storage">
-              Storage location
-            </label>
-            <input
-              id="unit-storage"
-              type="text"
-              value={storageLocation}
-              onChange={(event) =>
-                setStorageLocation(event.target.value)
-              }
-              disabled={saving}
-            />
-          </div>
-        </div>
-
-        <div className="form-group">
-          <label htmlFor="unit-storage-notes">
-            Storage notes (optional)
-          </label>
-          <textarea
-            id="unit-storage-notes"
-            value={storageNotes}
-            onChange={(event) =>
-              setStorageNotes(event.target.value)
-            }
-            rows={2}
-            disabled={saving}
-          />
-        </div>
+        <p className="section-description">
+          Added units are recorded as screened negative and
+          confirmed, ready to be shared with approved
+          hospitals.
+        </p>
 
         <div className="form-actions">
           <button

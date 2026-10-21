@@ -49,12 +49,6 @@ function ExpiryAlerts({ alerts }: ExpiryAlertsProps) {
                   </>
                 )}
               </p>
-
-              {alert.storageLocation && (
-                <p className="cell-note">
-                  Storage: {alert.storageLocation}
-                </p>
-              )}
             </div>
           </li>
         )

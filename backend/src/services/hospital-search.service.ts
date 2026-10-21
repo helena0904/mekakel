@@ -12,12 +12,23 @@ import {
   getEligibilityConfig,
 } from './settings.service'
 import { isAvailableStock } from './inventory.service'
+import { notifyUser } from './notification.service'
 import type { HospitalSearchQuery } from '../validators/hospital.schema'
 
 export interface NearbyHospitalUnitSummary {
   bloodType: string
   component: string
   availableUnits: number
+}
+
+export interface NearbyHospitalUnitDetail {
+  id: number
+  bagId: string
+  bloodType: string
+  component: string
+  collectionDate: Date
+  expiryDate: Date
+  storageLocation: string | null
 }
 
 export interface NearbyHospital {
@@ -30,6 +41,7 @@ export interface NearbyHospital {
   additionalPhone: string | null
   availableUnits: number
   unitSummary: NearbyHospitalUnitSummary[]
+  unitDetails: NearbyHospitalUnitDetail[]
 }
 
 export interface NearbyDonor {
@@ -45,6 +57,50 @@ export interface NearbyDonor {
   lastDonation: Date | null
   nextEligibleDate: string | null
   compatibility: CompatibilityExplanation | null
+}
+
+export interface HospitalDonorReport {
+  id: number
+  reportType: string
+  verificationStatus: string
+  createdAt: Date
+  verifiedAt: Date | null
+  rejectionReason: string | null
+}
+
+export interface HospitalDonorDonation {
+  id: number
+  donatedAt: Date
+  facilityName: string | null
+  units: number | null
+  notes: string | null
+}
+
+export interface HospitalDonorDetail {
+  donorProfileId: number
+  displayName: string
+  email: string | null
+  bloodType: string | null
+  dateOfBirth: Date | null
+  age: number
+  weight: number
+  height: number
+  subcity: string | null
+  wereda: string | null
+  address: string | null
+  phone: string | null
+  additionalPhone: string | null
+  contactAllowed: boolean
+  currentAvailability: string
+  activeStatus: string
+  verificationStatus: string
+  verifiedAt: Date | null
+  lastDonation: Date | null
+  nextEligibleDate: string | null
+  donationIntervalDays: number
+  medicalReports: HospitalDonorReport[]
+  donationHistory: HospitalDonorDonation[]
+  availabilities: Array<{ day: string; time: string }>
 }
 
 export interface HospitalSearchResult {
@@ -125,15 +181,21 @@ export async function searchNearbyHospitalsAndDonors(
           status: 'AVAILABLE',
           screeningStatus: 'PASSED',
           confirmationStatus: 'CONFIRMED',
+          bloodTypeConfirmed: true,
           expiryDate: { gte: now },
         },
         select: {
+          id: true,
+          bagId: true,
           bloodType: true,
           component: true,
           status: true,
           screeningStatus: true,
           confirmationStatus: true,
+          bloodTypeConfirmed: true,
+          collectionDate: true,
           expiryDate: true,
+          storageLocation: true,
         },
       },
     },
@@ -185,6 +247,20 @@ export async function searchNearbyHospitalsAndDonors(
       unitSummary: [...grouped.values()].sort((a, b) =>
         a.bloodType.localeCompare(b.bloodType)
       ),
+      unitDetails: [...compatibleUnits]
+        .sort(
+          (a, b) =>
+            a.expiryDate.getTime() - b.expiryDate.getTime()
+        )
+        .map((unit) => ({
+          id: unit.id,
+          bagId: unit.bagId,
+          bloodType: unit.bloodType,
+          component: unit.component,
+          collectionDate: unit.collectionDate,
+          expiryDate: unit.expiryDate,
+          storageLocation: unit.storageLocation,
+        })),
     }
   })
 
@@ -302,4 +378,205 @@ export async function searchNearbyHospitalsAndDonors(
     donors,
     generatedAt: now,
   }
+}
+
+/**
+ * Returns the clinical and contact information a hospital needs to evaluate
+ * a donor found through nearby search. The Fayda ID is intentionally never
+ * selected so it cannot leak through this endpoint.
+ */
+export async function getNearbyDonorDetail(
+  donorProfileId: number
+): Promise<HospitalDonorDetail | null> {
+  const donor = await prisma.donorProfile.findFirst({
+    where: {
+      id: donorProfileId,
+      matchingOptOut: false,
+      user: { isActive: true },
+    },
+    select: {
+      id: true,
+      bloodType: true,
+      dateOfBirth: true,
+      age: true,
+      weight: true,
+      height: true,
+      subcity: true,
+      wereda: true,
+      address: true,
+      phone: true,
+      additionalPhone: true,
+      shareLocation: true,
+      consentToContact: true,
+      currentAvailability: true,
+      activeStatus: true,
+      verificationStatus: true,
+      verifiedAt: true,
+      lastDonation: true,
+      donationIntervalDays: true,
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+      medicalReports: {
+        select: {
+          id: true,
+          reportType: true,
+          verificationStatus: true,
+          createdAt: true,
+          verifiedAt: true,
+          rejectionReason: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      },
+      donationHistory: {
+        select: {
+          id: true,
+          donatedAt: true,
+          facilityName: true,
+          units: true,
+          notes: true,
+        },
+        orderBy: { donatedAt: 'desc' },
+      },
+      availabilities: {
+        select: {
+          day: true,
+          time: true,
+        },
+        orderBy: { id: 'asc' },
+      },
+    },
+  })
+
+  if (!donor) {
+    return null
+  }
+
+  const eligibilityConfig = await getEligibilityConfig()
+
+  const eligibility = computeEligibility(
+    donor,
+    donor.donationHistory.map((record) => record.donatedAt),
+    new Date(),
+    eligibilityConfig
+  )
+
+  return {
+    donorProfileId: donor.id,
+    displayName: donor.user.name,
+    email: donor.consentToContact ? donor.user.email : null,
+    bloodType: donor.bloodType,
+    dateOfBirth: donor.dateOfBirth,
+    age: donor.age,
+    weight: donor.weight,
+    height: donor.height,
+    subcity: donor.subcity,
+    wereda: donor.wereda,
+    address: donor.shareLocation ? donor.address : null,
+    phone: donor.consentToContact ? donor.phone : null,
+    additionalPhone: donor.consentToContact
+      ? donor.additionalPhone
+      : null,
+    contactAllowed: donor.consentToContact,
+    currentAvailability: donor.currentAvailability,
+    activeStatus: donor.activeStatus,
+    verificationStatus: donor.verificationStatus,
+    verifiedAt: donor.verifiedAt,
+    lastDonation: donor.lastDonation,
+    nextEligibleDate: eligibility.nextEligibleDate,
+    donationIntervalDays: donor.donationIntervalDays,
+    medicalReports: donor.medicalReports,
+    donationHistory: donor.donationHistory,
+    availabilities: donor.availabilities,
+  }
+}
+
+export interface DonorBloodRequestResult {
+  donorProfileId: number
+  donorName: string
+  notificationId: number | null
+}
+
+/**
+ * Sends the donor a single urgent notification that the hospital needs blood.
+ * This is intentionally a one-click action: hospitals do not have to fill in
+ * a request form, and can follow up by phone using the contact details shown
+ * in the donor search result.
+ */
+export async function requestDonorBlood(
+  hospitalProfileId: number,
+  donorProfileId: number
+): Promise<DonorBloodRequestResult | null> {
+  const [hospital, donor] = await Promise.all([
+    prisma.hospitalProfile.findUnique({
+      where: { id: hospitalProfileId },
+      select: {
+        hospitalName: true,
+        phone: true,
+        address: true,
+      },
+    }),
+    prisma.donorProfile.findFirst({
+      where: {
+        id: donorProfileId,
+        matchingOptOut: false,
+        user: { isActive: true },
+      },
+      select: {
+        id: true,
+        bloodType: true,
+        userId: true,
+        user: { select: { name: true } },
+      },
+    }),
+  ])
+
+  if (!hospital || !donor) {
+    return null
+  }
+
+  const notification = await notifyUser(
+    donor.userId,
+    'DONOR_BLOOD_REQUESTED',
+    {
+      recipientName: donor.user.name,
+      hospitalName: hospital.hospitalName,
+      hospitalPhone: hospital.phone,
+      hospitalAddress: hospital.address,
+      bloodType: donor.bloodType ?? undefined,
+    },
+    {
+      relatedEntityType: 'HospitalProfile',
+      relatedEntityId: hospitalProfileId,
+    }
+  )
+
+  return {
+    donorProfileId: donor.id,
+    donorName: donor.user.name,
+    notificationId: notification?.id ?? null,
+  }
+}
+
+export async function findDonorReportForHospital(
+  reportId: number
+) {
+  return prisma.medicalReport.findFirst({
+    where: {
+      id: reportId,
+      donorProfile: {
+        matchingOptOut: false,
+        user: { isActive: true },
+      },
+    },
+    select: {
+      id: true,
+      fileUrl: true,
+      reportType: true,
+      donorProfileId: true,
+    },
+  })
 }

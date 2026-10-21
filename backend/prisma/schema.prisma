@@ -170,6 +170,7 @@ enum NotificationType {
   DONOR_VERIFICATION_APPROVED
   DONOR_VERIFICATION_REJECTED
   DONOR_ADDITIONAL_INFO_REQUIRED
+  DONOR_BLOOD_REQUESTED
   HOSPITAL_REGISTERED
   HOSPITAL_APPROVED
   HOSPITAL_REJECTED
@@ -206,6 +207,7 @@ enum AuditAction {
   RESERVATION_EXPIRED
   DONOR_RESPONSE_RECORDED
   MEDICAL_REPORT_ACCESSED
+  DONOR_BLOOD_REQUESTED
   CONSENT_CHANGED
   EMERGENCY_OVERRIDE_USED
   TRANSFER_REQUESTED
@@ -367,6 +369,7 @@ model BloodUnit {
   expiryDate         DateTime
   screeningStatus    ScreeningStatus    @default(PENDING)
   confirmationStatus ConfirmationStatus @default(PENDING)
+  bloodTypeConfirmed Boolean            @default(false)
   status             BloodUnitStatus    @default(PENDING)
   storageLocation    String?
   storageNotes       String?

@@ -59,6 +59,7 @@ async function seedCoordinationDataset() {
       ),
       screeningStatus: 'PASSED' as never,
       confirmationStatus: 'CONFIRMED' as never,
+      bloodTypeConfirmed: true,
       status: 'AVAILABLE' as never,
     }))
   )

@@ -2,8 +2,6 @@ import type { BloodUnit } from '../../services/inventory.service'
 import {
   BLOOD_COMPONENT_LABELS,
   BLOOD_UNIT_STATUS_LABELS,
-  CONFIRMATION_STATUS_LABELS,
-  SCREENING_STATUS_LABELS,
 } from '../../services/inventory.service'
 import {
   BLOOD_TYPE_LABELS,
@@ -57,9 +55,7 @@ function BloodUnitTable({
             <th>Component</th>
             <th>Collected</th>
             <th>Expires</th>
-            <th>Screening</th>
-            <th>Confirmation</th>
-            <th>Storage</th>
+            <th>Status</th>
             <th>Availability</th>
             {canWrite && <th>Actions</th>}
           </tr>
@@ -91,24 +87,7 @@ function BloodUnitTable({
                   )}
                 </td>
 
-                <td>
-                  {SCREENING_STATUS_LABELS[unit.screeningStatus]}
-                </td>
-
-                <td>
-                  {
-                    CONFIRMATION_STATUS_LABELS[
-                      unit.confirmationStatus
-                    ]
-                  }
-                </td>
-
-                <td>
-                  {unit.storageLocation || '—'}
-                  <span className="cell-note">
-                    {BLOOD_UNIT_STATUS_LABELS[unit.status]}
-                  </span>
-                </td>
+                <td>{BLOOD_UNIT_STATUS_LABELS[unit.status]}</td>
 
                 <td>
                   <span className={availability.className}>
