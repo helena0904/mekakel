@@ -79,7 +79,7 @@ function AdminDashboard() {
   return (
     <main className="dashboard-page">
       <div className="dashboard-container">
-
+        <h1>Administrator Dashboard</h1>
 
         <p>Welcome, {user?.name}!</p>
 
