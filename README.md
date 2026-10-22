@@ -1,104 +1,66 @@
-### \# MEKAKEL (መካከል)
+# MEKAKEL (መካከል)
 
-
-
-\### Finding blood when someone needs it
-
-
+> **Finding blood when someone needs it.**
 
 MEKAKEL is a web-based blood coordination platform designed to help authorized healthcare facilities identify compatible and available blood sources faster.
 
-
-
 The platform connects:
 
+- Healthcare facilities
+- Blood inventory
+- Verified volunteer donors
 
-
-\- Healthcare facilities
-
-\- Blood inventory
-
-\- Verified volunteer donors
-
-
-
-\## Project Goal
-
-
+## Project Goal
 
 MEKAKEL provides a digital coordination layer for blood requests, hospital inventory, and verified donors while maintaining controls for blood compatibility, screening, verification, reservations, and medical information.
 
+## Why MEKAKEL?
 
+Access to safe blood at the right time can be the difference between life and death. MEKAKEL reduces the delay in locating compatible blood by bringing hospitals, inventory, and verified donors into one coordinated system — so the focus stays on saving lives.
 
-\## Tech Stack
+## Tech Stack
 
+### Frontend
 
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
 
-\### Frontend
+### Backend
 
-\- React
+- Node.js
+- TypeScript
+- Express.js
+- Prisma
+- Zod
+- JWT
+- bcrypt
 
-\- TypeScript
+### Database
 
-\- Vite
+- PostgreSQL
 
-\- Tailwind CSS
+### Testing
 
+- Jest
+- Supertest
 
-
-\### Backend
-
-\- Node.js
-
-\- TypeScript
-
-\- Express.js
-
-\- Prisma
-
-\- Zod
-
-\- JWT
-
-\- bcrypt
-
-
-
-\### Database
-
-\- PostgreSQL
-
-
-
-\### Testing
-
-\- Jest
-
-\- Supertest
-
-
-
-\## Project Status
-
-
+## Project Status
 
 🚧 In development
 
-
-
-\## Repository Structure
-
-
+## Repository Structure
 
 ```text
-
 mekakel/
-
 ├── frontend/
-
 ├── backend/
-
 ├── documents/
-
 └── README.md
+```
 
+## Author
+
+- **Full Name:** Helen Tesfaye
+- **ID:** CTC-1586-26

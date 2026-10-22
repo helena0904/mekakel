@@ -32,6 +32,25 @@ h1,
 h2,
 h3 {
     font-family: var(--heading-font);
+    color: var(--text);
+    line-height: 1.25;
+}
+
+h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin-bottom: 1rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+h3 {
+    font-size: 1.125rem;
+    font-weight: 700;
 }
 
 
@@ -68,7 +87,8 @@ h3 {
 
 .navigationlinks {
     display: flex;
-    flex-basis: 100%;
+    flex-basis: calc(100% + 4rem);
+    width: calc(100% + 4rem);
     justify-content: center;
     align-items: center;
     flex-wrap: wrap;
@@ -995,15 +1015,13 @@ h3 {
 /* LOGIN CHOICE */
 
 .login-choice {
-    display: flex;
-    gap: 20px;
-    justify-content: center;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
 }
 
 .login-choice-button {
-    flex: 1;
-    min-width: 200px;
+    width: 100%;
     padding: 15px 24px;
     border: none;
     border-radius: 4px;
@@ -1533,12 +1551,17 @@ h3 {
     flex-wrap: wrap;
 }
 
-.section-header {
+.section-header,
+.section-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
+}
+
+.section-heading h2 {
+    margin-bottom: 0;
 }
 
 .filter-bar {
@@ -1557,6 +1580,110 @@ h3 {
 }
 
 
+/* NOTIFICATIONS AND ACTIVITY LISTS */
+
+.notification-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.notification-item {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: white;
+}
+
+.notification-unread {
+    border-left: 4px solid var(--red);
+    background-color: var(--red-soft);
+}
+
+.notification-item-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.notification-body {
+    margin: 0;
+    color: #555;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.notification-item-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.notification-preference-list {
+    list-style: none;
+    padding: 0;
+    margin: 10px 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.notification-preference-list li {
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background-color: var(--bg-soft);
+}
+
+.notification-preference-list label {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+}
+
+.notification-preference-list input {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    flex-shrink: 0;
+    accent-color: var(--red);
+}
+
+
+/* AVAILABILITY TIME RANGE */
+
+.time-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.time-range-separator {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+.fayda-verification {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 10px 0 20px;
+}
+
+
 /* RESPONSIVE */
 
 @media (max-width: 768px) {
@@ -1565,9 +1692,20 @@ h3 {
     }
 
     .navigationlinks {
+        flex-basis: calc(100% + 2rem);
+        width: calc(100% + 2rem);
         margin: 0.75rem -1rem 0;
         padding: 0.75rem 1rem;
         gap: 1rem;
+    }
+
+    .availability-row {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .time-range {
+        width: 100%;
     }
 
     .hero-content h1 {
@@ -1594,5 +1732,28 @@ h3 {
     .before-register-container,
     .login-container {
         padding: 24px;
+    }
+}
+
+@media (max-width: 560px) {
+    .login-choice {
+        grid-template-columns: 1fr;
+    }
+
+    .login-page,
+    .register-page,
+    .before-register-page {
+        padding: 2.5rem 1rem;
+    }
+
+    .login-container,
+    .register-container,
+    .before-register-container {
+        width: 100%;
+        padding: 20px;
+    }
+
+    .section-heading {
+        align-items: flex-start;
     }
 }
