@@ -58,9 +58,7 @@ function DonorDashboard() {
   return (
     <main className="dashboard-page">
       <div className="dashboard-container">
-        <h1>Individual Donor Dashboard</h1>
-
-        <p>Welcome, {user?.name}!</p>
+      <h1>Welcome, {user?.name}!</h1>
 
         {error && (
           <p className="register-error" role="alert">
