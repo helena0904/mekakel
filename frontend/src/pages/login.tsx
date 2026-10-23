@@ -63,12 +63,16 @@ function Login() {
   const navigate = useNavigate()
   const location = useLocation()
 
+  const registrationState = location.state as {
+    registrationSuccess?: boolean
+    pendingApproval?: boolean
+  } | null
+
   const registrationSuccess =
-    (
-      location.state as {
-        registrationSuccess?: boolean
-      } | null
-    )?.registrationSuccess === true
+    registrationState?.registrationSuccess === true
+
+  const pendingApproval =
+    registrationState?.pendingApproval === true
 
   // Redirect as soon as a session exists. This covers a successful login as
   // well as a session restored by the AuthProvider, so every account type
@@ -151,8 +155,9 @@ function Login() {
       <div className="login-container">
         {registrationSuccess && (
           <p className="register-success" role="status">
-            Your account was created successfully. Please sign in to
-            continue.
+            {pendingApproval
+              ? 'Your clinical reviewer account was created. An administrator must activate it before you can sign in.'
+              : 'Your account was created successfully. Please sign in to continue.'}
           </p>
         )}
 

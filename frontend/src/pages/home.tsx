@@ -8,11 +8,11 @@ function Home() {
  <img src={heroimage} alt="Blood donation and healthcare" className="hero-image" />
 
  <div className="hero-content">
-   <h1>Find Blood, Save Lives</h1>
- <p>  MEKAKEL connects hospitals, clinics, and verified volunteer donors to help find nearby blood resources when they are needed.</p>
+   <h1>Every Second Matters. Every Drop Counts.</h1>
+ <p> When a life depends on blood, every moment matters. MEKAKEL connects hospitals, clinics, and volunteer donors to bring hope closer to those who need it most</p>
                         
  <div className="hero-buttons">
-  <Link to="/login"><button>Become a Donor</button></Link>
+  <Link to="/login"><button>Become a lifesaviorr</button></Link>
   </div>
 </div>
 </section>

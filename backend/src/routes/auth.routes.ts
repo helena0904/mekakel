@@ -211,11 +211,19 @@ const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: passwordSchema,
   accountType: z.enum(['INDIVIDUAL', 'HOSPITAL']),
+  registrationType: z
+    .enum(['DONOR', 'HOSPITAL', 'DOCTOR'])
+    .optional(),
 
   faydaId: z.string()
     .trim()
     .regex(/^\d{16}$/)
     .optional(),
+
+  // Clinical reviewer details
+  licenseNumber: z.string().trim().min(3).max(60).optional(),
+  specialization: z.string().trim().min(2).max(120).optional(),
+  institution: z.string().trim().min(2).max(180).optional(),
 
   dateOfBirth: optionalDate,
   phone: z.string().trim().optional(),
@@ -283,7 +291,37 @@ router.post(
         data.address ??
         null
 
-      if (data.accountType === 'INDIVIDUAL') {
+      const registrationType =
+        data.registrationType ??
+        (data.accountType === 'HOSPITAL' ? 'HOSPITAL' : 'DONOR')
+
+      if (registrationType === 'DOCTOR') {
+        if (data.accountType !== 'INDIVIDUAL') {
+          return res.status(400).json({
+            message:
+              'Clinical reviewer accounts must use the individual account type',
+          })
+        }
+
+        if (
+          !data.phone ||
+          !data.licenseNumber ||
+          !data.specialization ||
+          !data.institution
+        ) {
+          return res.status(400).json({
+            message:
+              'Missing required clinical reviewer information',
+          })
+        }
+
+        if (file) {
+          return res.status(400).json({
+            message:
+              'Clinical reviewer registration cannot include a donor medical report',
+          })
+        }
+      } else if (data.accountType === 'INDIVIDUAL') {
         if (
           !data.faydaId ||
           !data.dateOfBirth ||
@@ -402,7 +440,7 @@ router.post(
       })
 
       const selectedDays =
-        data.accountType === 'INDIVIDUAL'
+        registrationType === 'DONOR'
           ? data.availabilities ?? []
           : []
 
@@ -437,9 +475,79 @@ router.post(
       )
 
       const role =
-        data.accountType === 'INDIVIDUAL'
-          ? 'DONOR'
-          : 'HOSPITAL_STAFF'
+        registrationType === 'DOCTOR'
+          ? 'DOCTOR'
+          : registrationType === 'HOSPITAL'
+            ? 'HOSPITAL_STAFF'
+            : 'DONOR'
+
+      const profileData =
+        registrationType === 'DOCTOR'
+          ? {
+              doctorProfile: {
+                create: {
+                  licenseNumber: data.licenseNumber!,
+                  specialization: data.specialization!,
+                  institution: data.institution!,
+                  phone: data.phone!,
+                  isVerified: false,
+                },
+              },
+            }
+          : registrationType === 'HOSPITAL'
+            ? {
+                hospitalProfile: {
+                  create: {
+                    hospitalName: data.hospitalName!,
+                    phone: data.phone!,
+                    address: donorAddress!,
+                    subcity: data.subcity || null,
+                    wereda: data.wereda || null,
+                    additionalPhone:
+                      data.additionalPhone || null,
+                    isVerified: false,
+                    status: 'PENDING' as const,
+                  },
+                },
+              }
+            : {
+                donorProfile: {
+                  create: {
+                    faydaId: data.faydaId!,
+                    dateOfBirth: new Date(
+                      data.dateOfBirth!
+                    ),
+                    phone: data.phone!,
+                    additionalPhone:
+                      data.additionalPhone || null,
+                    address: donorAddress!,
+                    subcity: data.subcity || null,
+                    wereda: data.wereda || null,
+                    age: data.age!,
+                    weight: data.weight!,
+                    height: data.height!,
+                    currentAvailability:
+                      data.currentAvailability ??
+                      'UNAVAILABLE',
+                    lastDonation: data.lastDonation
+                      ? new Date(data.lastDonation)
+                      : null,
+                    verificationStatus: 'PENDING' as const,
+                    activeStatus: donorActivation.status,
+                    activationNotes:
+                      activationNotes(donorActivation),
+                    availabilities: {
+                      create: selectedDays.map(
+                        (item) => ({
+                          day: item.day,
+                          time: normalizeAvailability(item)
+                            .time,
+                        })
+                      ),
+                    },
+                  },
+                },
+              }
 
       const user = await prisma.$transaction(
         async (tx) => {
@@ -450,73 +558,17 @@ router.post(
               passwordHash,
               accountType: data.accountType,
               role,
-              isActive: true,
-
-              ...(data.accountType === 'INDIVIDUAL'
-                ? {
-                    donorProfile: {
-                      create: {
-                        faydaId: data.faydaId!,
-                        dateOfBirth: new Date(
-                          data.dateOfBirth!
-                        ),
-                        phone: data.phone!,
-                        additionalPhone:
-                          data.additionalPhone || null,
-                        address: donorAddress!,
-                        subcity: data.subcity || null,
-                        wereda: data.wereda || null,
-                        age: data.age!,
-                        weight: data.weight!,
-                        height: data.height!,
-                        currentAvailability:
-                          data.currentAvailability ??
-                          'UNAVAILABLE',
-                        lastDonation: data.lastDonation
-                          ? new Date(data.lastDonation)
-                          : null,
-                        verificationStatus: 'PENDING',
-                        activeStatus: donorActivation.status,
-                        activationNotes:
-                          activationNotes(donorActivation),
-                        availabilities: {
-                          create: selectedDays.map(
-                            (item) => ({
-                              day: item.day,
-                              time: normalizeAvailability(item)
-                                .time,
-                            })
-                          ),
-                        },
-                      },
-                    },
-                  }
-                : {
-                    hospitalProfile: {
-                      create: {
-                        hospitalName:
-                          data.hospitalName!,
-                        phone: data.phone!,
-                        address: donorAddress!,
-                        subcity: data.subcity || null,
-                        wereda: data.wereda || null,
-                        additionalPhone:
-                          data.additionalPhone || null,
-                        isVerified: false,
-                        status: 'PENDING',
-                      },
-                    },
-                  }),
+              isActive: registrationType !== 'DOCTOR',
+              ...profileData,
             },
             include: {
               donorProfile: true,
               hospitalProfile: true,
+              doctorProfile: true,
             },
           })
 
-          if (
-            data.accountType === 'INDIVIDUAL'
-          ) {
+          if (registrationType === 'DONOR') {
             await tx.medicalReport.create({
               data: {
                 donorProfileId:
@@ -527,7 +579,7 @@ router.post(
                 verificationStatus: 'PENDING',
               },
             })
-          } else {
+          } else if (registrationType === 'HOSPITAL') {
             await tx.hospitalStaffMember.create({
               data: {
                 hospitalProfileId:
@@ -543,53 +595,57 @@ router.post(
         }
       )
 
-      try {
-        const isDonor = data.accountType === 'INDIVIDUAL'
+      if (registrationType !== 'DOCTOR') {
+        try {
+          const isDonor = registrationType === 'DONOR'
 
-        const welcomeEmail = await queueNotification({
-          userId: user.id,
-          type: isDonor
-            ? 'DONOR_REGISTERED'
-            : 'HOSPITAL_REGISTERED',
-          context: {
-            recipientName: user.name,
-            hospitalName: user.hospitalProfile?.hospitalName,
-          },
-          relatedEntityType: isDonor
-            ? 'DonorProfile'
-            : 'HospitalProfile',
-          relatedEntityId: isDonor
-            ? user.donorProfile?.id
-            : user.hospitalProfile?.id,
-        })
+          const welcomeEmail = await queueNotification({
+            userId: user.id,
+            type: isDonor
+              ? 'DONOR_REGISTERED'
+              : 'HOSPITAL_REGISTERED',
+            context: {
+              recipientName: user.name,
+              hospitalName: user.hospitalProfile?.hospitalName,
+            },
+            relatedEntityType: isDonor
+              ? 'DonorProfile'
+              : 'HospitalProfile',
+            relatedEntityId: isDonor
+              ? user.donorProfile?.id
+              : user.hospitalProfile?.id,
+          })
 
-        if (
-          welcomeEmail?.status === 'PENDING' &&
-          process.env.NODE_ENV !== 'test'
-        ) {
-          // Send the welcome email immediately instead of waiting for the
-          // background job; failures are retried by the job as usual.
-          void deliverNotification(welcomeEmail.id).catch(
-            (deliveryError) => {
-              console.error(
-                '[auth] welcome email delivery failed',
-                deliveryError
-              )
-            }
+          if (
+            welcomeEmail?.status === 'PENDING' &&
+            process.env.NODE_ENV !== 'test'
+          ) {
+            // Send the welcome email immediately instead of waiting for the
+            // background job; failures are retried by the job as usual.
+            void deliverNotification(welcomeEmail.id).catch(
+              (deliveryError) => {
+                console.error(
+                  '[auth] welcome email delivery failed',
+                  deliveryError
+                )
+              }
+            )
+          }
+        } catch (notificationError) {
+          console.error(
+            '[auth] welcome notification failed',
+            notificationError
           )
         }
-      } catch (notificationError) {
-        console.error(
-          '[auth] welcome notification failed',
-          notificationError
-        )
       }
 
       return res.status(201).json({
         message:
-          data.accountType === 'INDIVIDUAL'
+          registrationType === 'DONOR'
             ? 'Registration successful. Mock Fayda verification completed. Medical review pending.'
-            : 'Hospital registration submitted. Administrator approval pending.',
+            : registrationType === 'HOSPITAL'
+              ? 'Hospital registration submitted. Administrator approval pending.'
+              : 'Clinical reviewer registration submitted. An administrator must activate your account before you can sign in.',
         user: {
           id: user.id,
           name: user.name,
