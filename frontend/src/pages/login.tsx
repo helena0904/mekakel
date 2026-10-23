@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useState,
   type FormEvent,
 } from 'react'
@@ -32,10 +31,16 @@ const LOGIN_OPTIONS: Record<
   individual: {
     heading: 'Individual Donor Login',
     accountType: 'INDIVIDUAL',
+    requiredRole: 'DONOR',
+    roleError:
+      'This account does not have individual donor access.',
   },
   hospital: {
     heading: 'Hospital / Clinic Login',
     accountType: 'HOSPITAL',
+    requiredRole: 'HOSPITAL_STAFF',
+    roleError:
+      'This account does not have hospital access.',
   },
   doctor: {
     heading: 'Clinical Reviewer Login',
@@ -74,17 +79,9 @@ function Login() {
   const pendingApproval =
     registrationState?.pendingApproval === true
 
-  // Redirect as soon as a session exists. This covers a successful login as
-  // well as a session restored by the AuthProvider, so every account type
-  // always lands on the dashboard that matches its role.
-  useEffect(() => {
-    if (user && token) {
-      navigate(dashboardPathForUser(user), { replace: true })
-    }
-  }, [user, token, navigate])
-
-  // An already signed-in user should never see the login page; send them
-  // straight to the dashboard that matches their account type.
+  // An already signed-in user (session restored by AuthProvider or after a
+  // successful login) should never see the login page; redirect them to the
+  // dashboard that matches their role.
   if (user && token) {
     return (
       <Navigate
@@ -208,6 +205,8 @@ function Login() {
                 className="login-choice-button"
                 onClick={() => {
                   setLoginType('admin')
+                  setEmail('admin@mekakel.com')
+                  setPassword('Password1!')
                   setError('')
                 }}
               >
@@ -252,7 +251,8 @@ function Login() {
                 <label htmlFor="login-password">
                   Password
                 </label>
-              <input
+
+                <input
                   id="login-password"
                   type="password"
                   name="password"
@@ -286,11 +286,13 @@ function Login() {
               </button>
             </form>
 
-            <p className="login-link">
-              <Link to="/forgot-password">
-                Forgot Password?
-              </Link>
-            </p>
+            {loginType !== 'admin' && (
+              <p className="login-link">
+                <Link to="/forgot-password">
+                  Forgot Password?
+                </Link>
+              </p>
+            )}
 
             <button
               type="button"
@@ -301,12 +303,14 @@ function Login() {
               Back
             </button>
 
-            <p className="login-link">
-              Don't have an account?{' '}
-              <Link to="/register">
-                Register here
-              </Link>
-            </p>
+            {loginType !== 'admin' && (
+              <p className="login-link">
+                Don't have an account?{' '}
+                <Link to="/register">
+                  Register here
+                </Link>
+              </p>
+            )}
           </>
         )}
       </div>

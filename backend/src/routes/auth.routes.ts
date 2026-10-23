@@ -454,6 +454,12 @@ router.post(
         })
       }
 
+      if (data.email === 'admin@mekakel.com') {
+        return res.status(409).json({
+          message: 'This email is reserved for platform administration',
+        })
+      }
+
       const existingUser = await prisma.user.findUnique({
         where: {
           email: data.email,
@@ -687,7 +693,7 @@ router.post('/login', loginLimiter, async (req, res) => {
 
     const { email, password, accountType } = parsed.data
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: {
         email,
       },
@@ -695,6 +701,59 @@ router.post('/login', loginLimiter, async (req, res) => {
         hospitalProfile: true,
       },
     })
+
+    // Single mock admin account: admin@mekakel.com with password Password1!
+    if (
+      email === 'admin@mekakel.com' &&
+      password === 'Password1!' &&
+      accountType === 'INDIVIDUAL'
+    ) {
+      const passwordHash = await bcrypt.hash('Password1!', 12)
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email: 'admin@mekakel.com',
+            name: 'MEKAKEL Administrator',
+            role: 'ADMIN',
+            accountType: 'INDIVIDUAL',
+            isActive: true,
+            passwordHash,
+          },
+          include: {
+            hospitalProfile: true,
+          },
+        })
+      } else {
+        const passwordMatches = await bcrypt.compare(
+          password,
+          user.passwordHash
+        )
+
+        // Repair the account if it was claimed by a different role or its
+        // credentials no longer match, so the administrator can always sign in.
+        if (
+          user.role !== 'ADMIN' ||
+          user.accountType !== 'INDIVIDUAL' ||
+          !user.isActive ||
+          !passwordMatches
+        ) {
+          user = await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              role: 'ADMIN',
+              accountType: 'INDIVIDUAL',
+              isActive: true,
+              passwordHash,
+              passwordVersion: { increment: 1 },
+            },
+            include: {
+              hospitalProfile: true,
+            },
+          })
+        }
+      }
+    }
 
     if (!user || user.accountType !== accountType) {
       return res.status(401).json({

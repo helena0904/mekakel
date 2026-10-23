@@ -148,4 +148,37 @@ describe('POST /api/auth/login', () => {
 
     expect(res.status).toBe(400)
   })
+
+  it('bootstraps the platform administrator account on first login', async () => {
+    const res = await login({
+      email: 'admin@mekakel.com',
+      password: TEST_PASSWORD,
+      accountType: 'INDIVIDUAL',
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.body.user).toMatchObject({
+      email: 'admin@mekakel.com',
+      role: 'ADMIN',
+      accountType: 'INDIVIDUAL',
+    })
+  })
+
+  it('repairs an existing account using the administrator email', async () => {
+    await createUser({
+      email: 'admin@mekakel.com',
+      role: 'DONOR',
+      accountType: 'INDIVIDUAL',
+    })
+
+    const res = await login({
+      email: 'admin@mekakel.com',
+      password: TEST_PASSWORD,
+      accountType: 'INDIVIDUAL',
+    })
+
+    expect(res.status).toBe(200)
+    expect(res.body.user.role).toBe('ADMIN')
+    expect(res.body.user.accountType).toBe('INDIVIDUAL')
+  })
 })

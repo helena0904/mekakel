@@ -6,7 +6,7 @@ const PASSWORD = 'Password1!'
 
 const accounts = [
   {
-    email: 'admin@mekakel.test',
+    email: 'admin@mekakel.com',
     name: 'MEKAKEL Administrator',
     role: 'ADMIN',
   },
