@@ -243,6 +243,85 @@ describe('POST /api/auth/register - individual donor', () => {
   })
 })
 
+describe('POST /api/auth/register - clinical reviewer', () => {
+  function doctorFields(
+    overrides: DonorFieldOverrides = {}
+  ): Record<string, string | undefined> {
+    return {
+      name: 'Dr. Test Reviewer',
+      email: uniqueEmail('doctor'),
+      password: TEST_PASSWORD,
+      accountType: 'INDIVIDUAL',
+      registrationType: 'DOCTOR',
+      phone: '+251900000003',
+      licenseNumber: `LIC-${Date.now()}-${Math.random()}`,
+      specialization: 'Hematology',
+      institution: 'Test General Hospital',
+      ...overrides,
+    }
+  }
+
+  it('registers an inactive clinical reviewer pending administrator approval', async () => {
+    const fields = doctorFields()
+
+    const res = await postHospital(fields)
+
+    expect(res.status).toBe(201)
+    expect(res.body.user).toMatchObject({
+      email: fields.email,
+      role: 'DOCTOR',
+      accountType: 'INDIVIDUAL',
+      isActive: false,
+    })
+
+    const user = await prisma.user.findUnique({
+      where: { email: fields.email! },
+      include: { doctorProfile: true },
+    })
+
+    expect(user).not.toBeNull()
+    expect(user!.passwordHash).not.toBe(fields.password)
+    expect(user!.doctorProfile).toMatchObject({
+      licenseNumber: fields.licenseNumber,
+      specialization: 'Hematology',
+      institution: 'Test General Hospital',
+      isVerified: false,
+    })
+
+    const welcome = await prisma.notification.findFirst({
+      where: { userId: user!.id },
+    })
+
+    expect(welcome).toBeNull()
+  })
+
+  it('rejects a clinical reviewer without professional details', async () => {
+    const fields = doctorFields({ licenseNumber: undefined })
+
+    const res = await postHospital(fields)
+
+    expect(res.status).toBe(400)
+    expect(res.body.message).toMatch(
+      /missing required clinical reviewer information/i
+    )
+  })
+
+  it('rejects a clinical reviewer registration that uploads a medical report', async () => {
+    const fields = doctorFields()
+
+    const res = await postHospital(fields).attach(
+      'medicalReport',
+      PNG_BUFFER,
+      { filename: 'report.png', contentType: 'image/png' }
+    )
+
+    expect(res.status).toBe(400)
+    expect(res.body.message).toMatch(
+      /cannot include a donor medical report/i
+    )
+  })
+})
+
 describe('POST /api/auth/register - hospital', () => {
   function hospitalFields(
     overrides: DonorFieldOverrides = {}

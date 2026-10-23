@@ -132,6 +132,10 @@ function Register() {
   const [hospitalConfirmPassword, setHospitalConfirmPassword] =
     useState('')
 
+  const [licenseNumber, setLicenseNumber] = useState('')
+  const [specialization, setSpecialization] = useState('')
+  const [institution, setInstitution] = useState('')
+
   // Redirect as soon as a session exists. This covers registration, automatic
   // sign-in and any session restored by the AuthProvider, so every account
   // type always lands on the dashboard that matches its role.
@@ -588,6 +592,71 @@ function Register() {
     }
   }
 
+  const handleDoctorSubmit = async (
+    e: FormEvent<HTMLFormElement>,
+  ) => {
+    e.preventDefault()
+    setError('')
+    setSuccessMessage('')
+
+    if (!passwordIsStrong) {
+      setError('Please create a strong password.')
+      return
+    }
+
+    if (!passwordsMatch) {
+      setError('Passwords do not match.')
+      return
+    }
+
+    if (!licenseNumber.trim()) {
+      setError('Please enter your professional license number.')
+      return
+    }
+
+    if (!specialization.trim()) {
+      setError('Please enter your specialization.')
+      return
+    }
+
+    if (!institution.trim()) {
+      setError('Please enter your hospital or institution.')
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      await register({
+        email: email.trim(),
+        password,
+        name: fullName.trim(),
+        accountType: 'INDIVIDUAL',
+        registrationType: 'DOCTOR',
+        phone: `${countryCode}${phone.trim()}`,
+        licenseNumber: licenseNumber.trim(),
+        specialization: specialization.trim(),
+        institution: institution.trim(),
+      })
+
+      navigate('/login', {
+        replace: true,
+        state: {
+          registrationSuccess: true,
+          pendingApproval: true,
+        },
+      })
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : 'Registration failed. Please try again.',
+      )
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   // An already signed-in user should never see the registration page; send
   // them straight to the dashboard that matches their account type.
   if (user && token) {
@@ -627,6 +696,14 @@ function Register() {
                 onClick={() => setRegistrationType('hospital')}
               >
                 Hospital / Clinic
+              </button>
+
+              <button
+                type="button"
+                className="register-button"
+                onClick={() => setRegistrationType('doctor')}
+              >
+                Doctor / Clinical Reviewer
               </button>
             </div>
           </section>
@@ -741,6 +818,246 @@ function Register() {
               Back
             </button>
           </section>
+        </div>
+      </main>
+    )
+  }
+
+  if (registrationType === 'doctor') {
+    return (
+      <main className="register-page">
+        <div className="register-container">
+          <h1>Clinical Reviewer Registration</h1>
+
+          <p className="register-introduction">
+            Register as a doctor or clinical reviewer to review donor medical
+            reports and verification requests in MEKAKEL.
+          </p>
+
+          <form className="register-form" onSubmit={handleDoctorSubmit}>
+            {error && (
+              <div className="register-error" role="alert" ref={errorRef}>
+                {error}
+              </div>
+            )}
+
+            <section className="form-section">
+              <h2>1. Professional Information</h2>
+
+              <div className="form-group">
+                <label htmlFor="doctorName">Full Name</label>
+
+                <input
+                  type="text"
+                  id="doctorName"
+                  name="doctorName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="licenseNumber">
+                  Professional License Number
+                </label>
+
+                <input
+                  type="text"
+                  id="licenseNumber"
+                  name="licenseNumber"
+                  value={licenseNumber}
+                  onChange={(e) => setLicenseNumber(e.target.value)}
+                  placeholder="Enter your medical license number"
+                  required
+                />
+
+                <small>
+                  Your license will be checked by an administrator before
+                  your account is activated.
+                </small>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="specialization">Specialization</label>
+
+                <input
+                  type="text"
+                  id="specialization"
+                  name="specialization"
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                  placeholder="e.g. Hematology, Pathology"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="institution">
+                  Hospital / Institution
+                </label>
+
+                <input
+                  type="text"
+                  id="institution"
+                  name="institution"
+                  value={institution}
+                  onChange={(e) => setInstitution(e.target.value)}
+                  placeholder="Enter your hospital or institution"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="doctorEmail">Email</label>
+
+                <input
+                  type="email"
+                  id="doctorEmail"
+                  name="doctorEmail"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="doctorPhone">Phone Number</label>
+
+                <div className="phone-input">
+                  <select
+                    id="doctorCountryCode"
+                    name="doctorCountryCode"
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    required
+                  >
+                    {countryCodes.map((country) => (
+                      <option key={country.value} value={country.value}>
+                        {country.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  <input
+                    type="tel"
+                    id="doctorPhone"
+                    name="doctorPhone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="Enter phone number"
+                    required
+                  />
+                </div>
+              </div>
+            </section>
+
+            <section className="form-section">
+              <h2>2. Account Information</h2>
+
+              <div className="form-group">
+                <label htmlFor="doctorPassword">Password</label>
+
+                <input
+                  type="password"
+                  id="doctorPassword"
+                  name="doctorPassword"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a strong password"
+                  minLength={8}
+                  required
+                />
+
+                <small>
+                  Use at least 8 characters with uppercase and lowercase
+                  letters, numbers, and special characters.
+                </small>
+
+                {password.length > 0 && !passwordIsStrong && (
+                  <small className="password-warning">
+                    Your password is not strong enough. Add uppercase letters,
+                    lowercase letters, numbers, and a special character.
+                  </small>
+                )}
+
+                {passwordIsStrong && (
+                  <small className="password-success">
+                    Strong password.
+                  </small>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="doctorConfirmPassword">
+                  Confirm Password
+                </label>
+
+                <input
+                  type="password"
+                  id="doctorConfirmPassword"
+                  name="doctorConfirmPassword"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
+                  required
+                />
+
+                {confirmPassword.length > 0 && !passwordsMatch && (
+                  <small className="password-warning">
+                    Passwords do not match.
+                  </small>
+                )}
+
+                {passwordsMatch && (
+                  <small className="password-success">
+                    Passwords match.
+                  </small>
+                )}
+              </div>
+            </section>
+
+            <section className="verification-notice">
+              <h2>Administrator Approval</h2>
+
+              <p>
+                Clinical reviewers can access sensitive donor medical
+                information, so every registration must be reviewed by a
+                MEKAKEL administrator.
+              </p>
+
+              <p>
+                You will be able to sign in after your account is activated.
+              </p>
+            </section>
+
+            <button
+              type="submit"
+              className="register-button"
+              disabled={isSubmitting}
+            >
+              {isSubmitting
+                ? 'Submitting...'
+                : 'Submit Clinical Reviewer Registration'}
+            </button>
+
+            <button
+              type="button"
+              className="back-button"
+              onClick={() => {
+                setRegistrationType('')
+                setError('')
+              }}
+            >
+              Back
+            </button>
+
+            <p className="login-link">
+              Already have an account? <Link to="/login">Login</Link>
+            </p>
+          </form>
         </div>
       </main>
     )

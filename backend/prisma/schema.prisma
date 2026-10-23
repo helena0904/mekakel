@@ -233,6 +233,7 @@ model User {
 
   donorProfile        DonorProfile?
   hospitalProfile     HospitalProfile?
+  doctorProfile       DoctorProfile?
   hospitalStaffMember HospitalStaffMember?
   medicalReports      MedicalReport[]
   passwordResetToken  PasswordResetToken?
@@ -342,6 +343,23 @@ model HospitalProfile {
   reservations  Reservation[]
   transfersFrom Transfer[]            @relation("TransferFromHospital")
   transfersTo   Transfer[]            @relation("TransferToHospital")
+}
+
+model DoctorProfile {
+  id                Int       @id @default(autoincrement())
+  userId            Int       @unique
+  licenseNumber     String    @unique
+  specialization    String
+  institution       String
+  phone             String
+  isVerified        Boolean   @default(false)
+  verificationNotes String?
+  reviewedAt        DateTime?
+  reviewedByUserId  Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model HospitalStaffMember {

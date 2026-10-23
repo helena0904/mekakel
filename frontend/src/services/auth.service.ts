@@ -57,10 +57,16 @@ export interface RegisterData {
   password: string
   name: string
   accountType: AccountType
+  registrationType?: 'DONOR' | 'HOSPITAL' | 'DOCTOR'
 
   // Mock Fayda identity fields
   faydaId?: string
   dateOfBirth?: string
+
+  // Clinical reviewer details
+  licenseNumber?: string
+  specialization?: string
+  institution?: string
 
   // Contact information
   phone?: string

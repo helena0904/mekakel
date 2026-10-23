@@ -2,10 +2,10 @@
 @import "tailwindcss";
 
 :root {
-    --red: #c8190b;
+    --red: #be463d;
     --red-dark: #a01208;
     --red-soft: #fdeceb;
-    --text: #1d1d1f;
+    --text: #0e0e0e;
     --muted: #666;
     --bg-soft: #f7f7f7;
     --border: #e6e6e6;
@@ -443,7 +443,7 @@ h3 {
 .footer {
     padding: 3rem 2rem;
     text-align: center;
-    background-color: #1d1d1f;
+    background-color: #414447;
     color: #ddd;
     border-top: 4px solid var(--red);
 }
