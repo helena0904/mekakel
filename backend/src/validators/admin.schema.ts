@@ -15,6 +15,7 @@ export const ACCOUNT_TYPES = [
 
 export const AUDIT_ACTIONS = [
   'DONOR_VERIFICATION_DECIDED',
+  'DOCTOR_REVIEW_ASSIGNED',
   'HOSPITAL_REGISTRATION_DECIDED',
   'USER_ROLE_CHANGED',
   'USER_STATUS_CHANGED',
@@ -79,6 +80,13 @@ export const VERIFICATION_STATUSES = [
 export const listVerificationQueueQuerySchema = z.object({
   status: z.enum(VERIFICATION_STATUSES).optional(),
   limit: positiveIntFromQuery,
+})
+
+export const assignReviewSchema = z.object({
+  doctorUserId: z.coerce
+    .number()
+    .int()
+    .positive('Select a doctor for this review'),
 })
 
 export const updateUserSchema = z

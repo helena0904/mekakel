@@ -633,7 +633,14 @@ function HospitalSearchPage() {
 
                         <h3>Medical reports</h3>
 
-                        {donorDetail.medicalReports.length === 0 ? (
+                        {donorDetail.reportsRestricted ? (
+                          <p>
+                            Medical reports are available only
+                            after this donor accepts your blood
+                            request. Send a request and wait for
+                            the donor to accept.
+                          </p>
+                        ) : donorDetail.medicalReports.length === 0 ? (
                           <p>No medical report was uploaded.</p>
                         ) : (
                           <ul className="donor-links">

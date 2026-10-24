@@ -99,6 +99,7 @@ export interface HospitalDonorDetail {
   nextEligibleDate: string | null
   donationIntervalDays: number
   medicalReports: HospitalDonorReport[]
+  reportsRestricted: boolean
   donationHistory: HospitalDonorDonation[]
   availabilities: Array<{ day: string; time: string }>
 }
@@ -385,8 +386,29 @@ export async function searchNearbyHospitalsAndDonors(
  * a donor found through nearby search. The Fayda ID is intentionally never
  * selected so it cannot leak through this endpoint.
  */
+export async function hasAcceptedDonorReservation(
+  hospitalProfileId: number,
+  donorProfileId: number,
+  now: Date = new Date()
+): Promise<boolean> {
+  const count = await prisma.reservation.count({
+    where: {
+      hospitalProfileId,
+      donorProfileId,
+      status: 'CONFIRMED',
+      donorResponse: 'ACCEPTED',
+      expiresAt: { gt: now },
+    },
+  })
+
+  return count > 0
+}
+
 export async function getNearbyDonorDetail(
-  donorProfileId: number
+  donorProfileId: number,
+  hospitalProfileId: number,
+  canViewReports = true,
+  now: Date = new Date()
 ): Promise<HospitalDonorDetail | null> {
   const donor = await prisma.donorProfile.findFirst({
     where: {
@@ -460,9 +482,17 @@ export async function getNearbyDonorDetail(
   const eligibility = computeEligibility(
     donor,
     donor.donationHistory.map((record) => record.donatedAt),
-    new Date(),
+    now,
     eligibilityConfig
   )
+
+  const reportsRestricted =
+    !canViewReports ||
+    !(await hasAcceptedDonorReservation(
+      hospitalProfileId,
+      donorProfileId,
+      now
+    ))
 
   return {
     donorProfileId: donor.id,
@@ -488,7 +518,8 @@ export async function getNearbyDonorDetail(
     lastDonation: donor.lastDonation,
     nextEligibleDate: eligibility.nextEligibleDate,
     donationIntervalDays: donor.donationIntervalDays,
-    medicalReports: donor.medicalReports,
+    medicalReports: reportsRestricted ? [] : donor.medicalReports,
+    reportsRestricted,
     donationHistory: donor.donationHistory,
     availabilities: donor.availabilities,
   }
@@ -562,7 +593,9 @@ export async function requestDonorBlood(
 }
 
 export async function findDonorReportForHospital(
-  reportId: number
+  reportId: number,
+  hospitalProfileId: number,
+  now: Date = new Date()
 ) {
   return prisma.medicalReport.findFirst({
     where: {
@@ -570,6 +603,14 @@ export async function findDonorReportForHospital(
       donorProfile: {
         matchingOptOut: false,
         user: { isActive: true },
+        reservations: {
+          some: {
+            hospitalProfileId,
+            status: 'CONFIRMED',
+            donorResponse: 'ACCEPTED',
+            expiresAt: { gt: now },
+          },
+        },
       },
     },
     select: {

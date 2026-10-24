@@ -40,6 +40,13 @@ export function findDonorProfile(userId: number) {
   })
 }
 
+export function findDonorProfileId(userId: number) {
+  return prisma.donorProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  })
+}
+
 export async function updateDonorProfile(
   userId: number,
   data: UpdateProfileInput

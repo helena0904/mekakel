@@ -15,12 +15,14 @@ import type {
   HospitalAccess,
   HospitalStaffRoleValue,
 } from '../services/hospital.service'
+import { findDonorProfileId } from '../services/donor.service'
 import {
   cancelReservation,
   confirmReservation,
   consumeReservation,
   createReservation,
   findReservation,
+  listDonorReservations,
   listReservations,
   recordDonorResponse,
   releaseReservation,
@@ -79,6 +81,33 @@ function ensureWrite(
   }
 
   return true
+}
+
+async function ensureDonorProfile(
+  req: AuthRequest,
+  res: Response
+): Promise<number | null> {
+  if (!req.user) {
+    res.status(401).json({ message: 'Authentication required' })
+    return null
+  }
+
+  if (
+    req.user.role !== 'DONOR' ||
+    req.user.accountType !== 'INDIVIDUAL'
+  ) {
+    res.status(403).json({ message: 'Donor access required' })
+    return null
+  }
+
+  const profile = await findDonorProfileId(req.user.userId)
+
+  if (!profile) {
+    res.status(404).json({ message: 'Donor profile not found' })
+    return null
+  }
+
+  return profile.id
 }
 
 function parseId(value: unknown): number | null {
@@ -144,6 +173,44 @@ export async function getReservations(
   try {
     const reservations = await listReservations(
       access.hospitalProfileId,
+      parsed.data
+    )
+
+    return res.status(200).json({ reservations })
+  } catch (error) {
+    return respondError(
+      res,
+      error,
+      'Unable to load reservations'
+    )
+  }
+}
+
+export async function getDonorReservations(
+  req: AuthRequest,
+  res: Response
+) {
+  const donorProfileId = await ensureDonorProfile(req, res)
+
+  if (donorProfileId === null) {
+    return
+  }
+
+  const parsed = listReservationsQuerySchema.safeParse(
+    req.query
+  )
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message:
+        parsed.error.issues[0]?.message ??
+        'Invalid reservation filters',
+    })
+  }
+
+  try {
+    const reservations = await listDonorReservations(
+      donorProfileId,
       parsed.data
     )
 
@@ -446,13 +513,9 @@ export async function patchDonorResponse(
   req: AuthRequest,
   res: Response
 ) {
-  const access = await ensureHospital(req, res)
+  const donorProfileId = await ensureDonorProfile(req, res)
 
-  if (!access) {
-    return
-  }
-
-  if (!ensureWrite(res, access)) {
+  if (donorProfileId === null) {
     return
   }
 
@@ -477,7 +540,7 @@ export async function patchDonorResponse(
 
   try {
     const reservation = await recordDonorResponse(
-      access.hospitalProfileId,
+      donorProfileId,
       reservationId,
       parsed.data
     )

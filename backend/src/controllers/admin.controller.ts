@@ -1,6 +1,12 @@
 import type { Response } from 'express'
 
 import type { AuthRequest } from '../middleware/auth.middleware'
+import { isAppError } from '../lib/errors'
+import { listDonorRegistrations } from '../services/medical-verification.service'
+import {
+  assignDonorReview,
+  listActiveDoctors,
+} from '../services/review-assignment.service'
 import {
   listHospitals,
   notifyHospitalReview,
@@ -21,8 +27,10 @@ import {
   updateSettings,
 } from '../services/settings.service'
 import {
+  assignReviewSchema,
   listAuditLogsQuerySchema,
   listUsersQuerySchema,
+  listVerificationQueueQuerySchema,
   updateSettingsSchema,
   updateUserSchema,
 } from '../validators/admin.schema'
@@ -205,6 +213,86 @@ export async function reviewHospitalRegistration(
 
     return res.status(500).json({
       message: 'Unable to update hospital registration',
+    })
+  }
+}
+
+export async function getReviewAssignments(
+  req: AuthRequest,
+  res: Response
+) {
+  const parsed = listVerificationQueueQuerySchema.safeParse(
+    req.query
+  )
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message:
+        parsed.error.issues[0]?.message ??
+        'Invalid review filters',
+    })
+  }
+
+  try {
+    const [donors, doctors] = await Promise.all([
+      listDonorRegistrations(parsed.data),
+      listActiveDoctors(),
+    ])
+
+    return res.status(200).json({ donors, doctors })
+  } catch (error) {
+    console.error('List review assignments error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to load review assignments',
+    })
+  }
+}
+
+export async function postReviewAssignment(
+  req: AuthRequest,
+  res: Response
+) {
+  const donorProfileId = parseId(req.params.id)
+
+  if (donorProfileId === null) {
+    return res.status(400).json({
+      message: 'Invalid donor id',
+    })
+  }
+
+  const parsed = assignReviewSchema.safeParse(req.body)
+
+  if (!parsed.success) {
+    return res.status(400).json({
+      message:
+        parsed.error.issues[0]?.message ??
+        'Invalid review assignment',
+    })
+  }
+
+  try {
+    const assignment = await assignDonorReview(
+      donorProfileId,
+      parsed.data.doctorUserId,
+      actorFromRequest(req)
+    )
+
+    return res.status(200).json({
+      message: 'Review assigned',
+      assignment,
+    })
+  } catch (error) {
+    if (isAppError(error)) {
+      return res
+        .status(error.statusCode)
+        .json({ message: error.message })
+    }
+
+    console.error('Assign donor review error:', error)
+
+    return res.status(500).json({
+      message: 'Unable to assign the donor review',
     })
   }
 }

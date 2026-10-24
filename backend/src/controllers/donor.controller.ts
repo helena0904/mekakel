@@ -13,7 +13,7 @@ import {
 } from '../services/donor.service'
 import {
   decideDonorVerification,
-  listVerificationQueue,
+  listDonorRegistrations,
 } from '../services/medical-verification.service'
 import {
   actorFromRequest,
@@ -67,7 +67,7 @@ export async function getDonorRegistrations(
   }
 
   try {
-    const donors = await listVerificationQueue({ status: 'ALL' })
+    const donors = await listDonorRegistrations({ status: 'ALL' })
 
     return res.status(200).json({ donors })
   } catch (error) {

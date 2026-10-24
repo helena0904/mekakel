@@ -31,6 +31,15 @@ export interface ReservationBloodRequest {
 
 export type ReservationKindValue = 'BLOOD_UNIT' | 'DONOR'
 
+export interface ReservationHospital {
+  id: number
+  hospitalName: string
+  address: string
+  subcity: string | null
+  wereda: string | null
+  phone: string
+}
+
 export interface ReservationDonor {
   id: number
   phone: string
@@ -67,6 +76,7 @@ export interface Reservation {
   bloodUnit: BloodUnit | null
   bloodRequest: ReservationBloodRequest | null
   donorProfile: ReservationDonor | null
+  hospitalProfile: ReservationHospital
 }
 
 export interface ReservationInput {
@@ -105,6 +115,16 @@ export async function getReservations(
   const response = await apiRequest<{
     reservations: Reservation[]
   }>(`/reservations${buildQuery(filters)}`)
+
+  return response.reservations
+}
+
+export async function getDonorReservations(
+  filters: ReservationFilters = {}
+): Promise<Reservation[]> {
+  const response = await apiRequest<{
+    reservations: Reservation[]
+  }>(`/reservations/donor${buildQuery(filters)}`)
 
   return response.reservations
 }
@@ -175,7 +195,7 @@ export function consumeReservation(
 
 export async function recordDonorResponse(
   reservationId: number,
-  donorResponse: Exclude<DonorResponseStatusValue, 'PENDING'>,
+  donorResponse: 'ACCEPTED' | 'DECLINED',
   note?: string
 ): Promise<Reservation> {
   const response = await apiRequest<{

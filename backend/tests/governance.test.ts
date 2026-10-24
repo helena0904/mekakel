@@ -14,6 +14,7 @@ import {
   createDonorProfile,
   createUser,
 } from './helpers/factories'
+import { assignDoctorReview } from './helpers/actors'
 import { REPORT_DIR } from '../src/middleware/upload.middleware'
 import { compatibleDonorTypes } from '../src/services/compatibility.service'
 import {
@@ -131,6 +132,8 @@ describe('Doctor verification workflow', () => {
     const donor = await donorWithReport()
     const doctor = await doctorUser()
 
+    await assignDoctorReview(donor.profile.id, doctor.user.id)
+
     const queue = await request(app)
       .get('/api/doctor/verifications')
       .set('Authorization', auth(doctor.token))
@@ -192,6 +195,8 @@ describe('Doctor verification workflow', () => {
     const donor = await donorWithReport()
     const doctor = await doctorUser()
 
+    await assignDoctorReview(donor.profile.id, doctor.user.id)
+
     const response = await request(app)
       .post(
         `/api/doctor/verifications/${donor.profile.id}/decision`
@@ -205,6 +210,8 @@ describe('Doctor verification workflow', () => {
   it('streams medical report files to doctors', async () => {
     const donor = await donorWithReport()
     const doctor = await doctorUser()
+
+    await assignDoctorReview(donor.profile.id, doctor.user.id)
 
     const filename = path.basename(donor.report.fileUrl)
     const filePath = path.join(REPORT_DIR, filename)

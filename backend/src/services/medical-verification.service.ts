@@ -73,12 +73,47 @@ const queueInclude = {
   medicalReports: { orderBy: { createdAt: 'desc' as const } },
 }
 
+const reviewAssignmentInclude = {
+  doctor: {
+    select: { id: true, name: true, email: true, isActive: true },
+  },
+  assignedBy: {
+    select: { id: true, name: true },
+  },
+} as const
+
 const MAX_QUEUE_LIMIT = 200
 
 export function listVerificationQueue(
+  doctorUserId: number,
   query: ListVerificationQueueQuery = {},
 ) {
   const status = query.status ?? 'PENDING'
+  const limit = Math.min(
+    Math.max(query.limit ?? 100, 1),
+    MAX_QUEUE_LIMIT,
+  )
+
+  return prisma.donorProfile.findMany({
+    where: {
+      reviewAssignment: { doctorUserId },
+      ...(status === 'ALL'
+        ? {}
+        : { verificationStatus: status }),
+    },
+    orderBy:
+      status === 'PENDING'
+        ? { createdAt: 'asc' }
+        : { createdAt: 'desc' },
+    take: limit,
+    include: queueInclude,
+  })
+}
+
+export function listDonorRegistrations(
+  query: ListVerificationQueueQuery = {},
+) {
+  const status = query.status ?? 'ALL'
   const limit = Math.min(
     Math.max(query.limit ?? 100, 1),
     MAX_QUEUE_LIMIT,
@@ -89,18 +124,28 @@ export function listVerificationQueue(
       status === 'ALL'
         ? undefined
         : { verificationStatus: status },
-    orderBy:
-      status === 'PENDING'
-        ? { createdAt: 'asc' }
-        : { createdAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: limit,
-    include: queueInclude,
+    include: {
+      ...queueInclude,
+      reviewAssignment: {
+        include: reviewAssignmentInclude,
+      },
+    },
   })
 }
 
-export function findDonorForReview(donorProfileId: number) {
-  return prisma.donorProfile.findUnique({
-    where: { id: donorProfileId },
+export function findDonorForReview(
+  donorProfileId: number,
+  doctorUserId?: number,
+) {
+  return prisma.donorProfile.findFirst({
+    where: {
+      id: donorProfileId,
+      ...(doctorUserId === undefined
+        ? {}
+        : { reviewAssignment: { doctorUserId } }),
+    },
     include: {
       user: { select: donorUserSelect },
       medicalReports: {
@@ -115,9 +160,13 @@ export function findDonorForReview(donorProfileId: number) {
 }
 
 export async function getVerificationDetail(
+  doctorUserId: number,
   donorProfileId: number,
 ) {
-  const donor = await findDonorForReview(donorProfileId)
+  const donor = await findDonorForReview(
+    donorProfileId,
+    doctorUserId,
+  )
 
   if (!donor) {
     return null
@@ -143,9 +192,15 @@ export async function decideDonorVerification(
   donorProfileId: number,
   data: ReviewDonorVerificationInput,
   actor: AuditActor = {},
+  doctorUserId?: number,
 ) {
-  const existing = await prisma.donorProfile.findUnique({
-    where: { id: donorProfileId },
+  const existing = await prisma.donorProfile.findFirst({
+    where: {
+      id: donorProfileId,
+      ...(doctorUserId === undefined
+        ? {}
+        : { reviewAssignment: { doctorUserId } }),
+    },
     select: { id: true },
   })
 
@@ -231,9 +286,17 @@ export async function decideDonorVerification(
   return donor
 }
 
-export function findReportForReview(reportId: number) {
-  return prisma.medicalReport.findUnique({
-    where: { id: reportId },
+export function findReportForReview(
+  reportId: number,
+  doctorUserId: number,
+) {
+  return prisma.medicalReport.findFirst({
+    where: {
+      id: reportId,
+      donorProfile: {
+        reviewAssignment: { doctorUserId },
+      },
+    },
     select: {
       id: true,
       fileUrl: true,

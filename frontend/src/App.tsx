@@ -23,6 +23,7 @@ import DonorProfilePage from './pages/donor/donor-profile'
 import DonorAvailabilityPage from './pages/donor/donor-availability'
 import DonorMedicalReportsPage from './pages/donor/donor-medical-reports'
 import DonorHistoryPage from './pages/donor/donor-history'
+import DonorRequestsPage from './pages/donor/donor-requests'
 
 import HospitalProfilePage from './pages/hospital/hospital-profile'
 import HospitalSearchPage from './pages/hospital/hospital-search'
@@ -31,6 +32,7 @@ import BloodInventoryPage from './pages/hospital/blood-inventory'
 import HospitalApprovalsPage from './pages/admin/hospital-approvals'
 import UserManagementPage from './pages/admin/user-management'
 import AuditLogsPage from './pages/admin/audit-logs'
+import ReviewAssignmentsPage from './pages/admin/review-assignments'
 
 import VerificationQueuePage from './pages/doctor/verification-queue'
 import ReviewMedicalReportPage from './pages/doctor/review-medical-report'
@@ -115,6 +117,11 @@ function App() {
             path="/donor/history"
             element={<DonorHistoryPage />}
           />
+
+          <Route
+            path="/donor/requests"
+            element={<DonorRequestsPage />}
+          />
         </Route>
 
         <Route
@@ -196,6 +203,11 @@ function App() {
           <Route
             path="/admin/users"
             element={<UserManagementPage />}
+          />
+
+          <Route
+            path="/admin/review-assignments"
+            element={<ReviewAssignmentsPage />}
           />
 
           <Route

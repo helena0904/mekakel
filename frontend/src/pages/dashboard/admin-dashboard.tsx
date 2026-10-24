@@ -114,6 +114,11 @@ function AdminDashboard() {
               </Link>
             </li>
             <li>
+              <Link to="/admin/review-assignments">
+                Assign doctors to donor reviews
+              </Link>
+            </li>
+            <li>
               <Link to="/admin/audit-logs">
                 Review the audit trail
               </Link>

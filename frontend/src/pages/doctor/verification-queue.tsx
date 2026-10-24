@@ -70,7 +70,9 @@ function VerificationQueuePage() {
 
         <p>
           Review donor medical reports and record an authorized
-          clinical decision. Every decision is auditable.
+          clinical decision. Only donors assigned to you by an
+          administrator appear here, and every decision is
+          auditable.
         </p>
 
         {error && (
@@ -109,7 +111,9 @@ function VerificationQueuePage() {
         {loading && <p role="status">Loading…</p>}
 
         {!loading && donors.length === 0 && (
-          <p>No donor reports match this filter.</p>
+          <p>
+            No assigned donor reports match this filter.
+          </p>
         )}
 
         {donors.length > 0 && (

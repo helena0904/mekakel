@@ -10,6 +10,11 @@ router.use(authenticateToken)
 router.get('/', reservationController.getReservations)
 router.post('/', reservationController.postReservation)
 
+router.get(
+  '/donor',
+  reservationController.getDonorReservations
+)
+
 router.get('/:id', reservationController.getReservation)
 router.post(
   '/:id/confirm',
