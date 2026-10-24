@@ -7,6 +7,7 @@ import {
   disconnectDatabase,
 } from './helpers/db'
 import {
+  acceptedDonorReservation,
   addDonor,
   addUnit,
   approvedHospital,
@@ -203,7 +204,7 @@ describe('hospital nearby search', () => {
     expect(response.body.donors[0].bloodType).toBeNull()
   })
 
-  it('returns donor details with medical reports but never the Fayda ID', async () => {
+  it('returns donor details with medical reports after an accepted reservation', async () => {
     const viewer = await approvedHospital()
     await locateHospital(viewer.hospitalProfileId, 'Bole', 'Woreda 03')
 
@@ -235,6 +236,12 @@ describe('hospital nearby search', () => {
       },
     })
 
+    await acceptedDonorReservation(
+      viewer.hospitalProfileId,
+      donor.id,
+      viewer.user.id
+    )
+
     const response = await request(app)
       .get(`/api/hospital/donors/${donor.id}`)
       .set('Authorization', auth(viewer.token))
@@ -243,9 +250,82 @@ describe('hospital nearby search', () => {
     expect(response.body.donor.donorProfileId).toBe(donor.id)
     expect(response.body.donor.displayName).toBe(donorUser.name)
     expect(response.body.donor.faydaId).toBeUndefined()
+    expect(response.body.donor.reportsRestricted).toBe(false)
     expect(response.body.donor.medicalReports).toHaveLength(1)
     expect(response.body.donor.medicalReports[0].id).toBe(report.id)
     expect(response.body.donor.medicalReports[0].fileUrl).toBeUndefined()
+  })
+
+  it('restricts medical reports without an accepted reservation', async () => {
+    const viewer = await approvedHospital()
+    const donor = await addDonor()
+
+    await prisma.medicalReport.create({
+      data: {
+        donorProfileId: donor.id,
+        uploadedByUserId: donor.userId,
+        reportType: 'IMAGE',
+        fileUrl: 'test-report.png',
+        verificationStatus: 'VERIFIED',
+      },
+    })
+
+    const response = await request(app)
+      .get(`/api/hospital/donors/${donor.id}`)
+      .set('Authorization', auth(viewer.token))
+
+    expect(response.status).toBe(200)
+    expect(response.body.donor.reportsRestricted).toBe(true)
+    expect(response.body.donor.medicalReports).toEqual([])
+  })
+
+  it('does not unlock reports through another hospital reservation', async () => {
+    const viewer = await approvedHospital()
+    const otherHospital = await approvedHospital()
+    const donor = await addDonor()
+
+    await prisma.medicalReport.create({
+      data: {
+        donorProfileId: donor.id,
+        uploadedByUserId: donor.userId,
+        reportType: 'IMAGE',
+        fileUrl: 'test-report.png',
+        verificationStatus: 'VERIFIED',
+      },
+    })
+
+    await acceptedDonorReservation(
+      otherHospital.hospitalProfileId,
+      donor.id,
+      otherHospital.user.id
+    )
+
+    const response = await request(app)
+      .get(`/api/hospital/donors/${donor.id}`)
+      .set('Authorization', auth(viewer.token))
+
+    expect(response.status).toBe(200)
+    expect(response.body.donor.reportsRestricted).toBe(true)
+    expect(response.body.donor.medicalReports).toEqual([])
+  })
+
+  it('does not unlock reports through an expired accepted reservation', async () => {
+    const viewer = await approvedHospital()
+    const donor = await addDonor()
+
+    await acceptedDonorReservation(
+      viewer.hospitalProfileId,
+      donor.id,
+      viewer.user.id,
+      { expiresAt: new Date(Date.now() - DAY) }
+    )
+
+    const response = await request(app)
+      .get(`/api/hospital/donors/${donor.id}`)
+      .set('Authorization', auth(viewer.token))
+
+    expect(response.status).toBe(200)
+    expect(response.body.donor.reportsRestricted).toBe(true)
   })
 
   it('sends a one-click urgent blood request notification to a donor', async () => {

@@ -61,6 +61,53 @@ export async function doctorUser() {
   return { user, token: tokenFor(user) }
 }
 
+export interface ReservationOverrides {
+  status?: 'ACTIVE' | 'CONFIRMED' | 'CANCELLED' | 'EXPIRED'
+  donorResponse?: 'PENDING' | 'ACCEPTED' | 'DECLINED' | 'NO_SHOW'
+  expiresAt?: Date
+}
+
+export async function acceptedDonorReservation(
+  hospitalProfileId: number,
+  donorProfileId: number,
+  createdByUserId: number,
+  overrides: ReservationOverrides = {}
+) {
+  return prisma.reservation.create({
+    data: {
+      hospitalProfileId,
+      donorProfileId,
+      kind: 'DONOR',
+      status: overrides.status ?? 'CONFIRMED',
+      donorResponse: overrides.donorResponse ?? 'ACCEPTED',
+      donorRespondedAt: new Date(),
+      expiresAt:
+        overrides.expiresAt ?? new Date(Date.now() + DAY),
+      createdByUserId,
+    },
+  })
+}
+
+export async function assignDoctorReview(
+  donorProfileId: number,
+  doctorUserId: number,
+  assignedByUserId?: number
+) {
+  return prisma.doctorReviewAssignment.upsert({
+    where: { donorProfileId },
+    create: {
+      donorProfileId,
+      doctorUserId,
+      assignedByUserId: assignedByUserId ?? null,
+    },
+    update: {
+      doctorUserId,
+      assignedByUserId: assignedByUserId ?? null,
+      assignedAt: new Date(),
+    },
+  })
+}
+
 export function isoDate(offsetDays: number): string {
   return new Date(Date.now() + offsetDays * DAY)
     .toISOString()
@@ -131,7 +178,7 @@ export async function addDonor(overrides: DonorOverrides = {}) {
 
   const profile = await createDonorProfile(user.id)
 
-  return prisma.donorProfile.update({
+  const updated = await prisma.donorProfile.update({
     where: { id: profile.id },
     data: {
       bloodType: (overrides.bloodType ?? 'O_NEGATIVE') as never,
@@ -151,6 +198,12 @@ export async function addDonor(overrides: DonorOverrides = {}) {
       donationIntervalDays: overrides.donationIntervalDays ?? 90,
     },
   })
+
+  return {
+    ...updated,
+    user,
+    token: tokenFor(user),
+  }
 }
 
 export interface RequestOverrides {

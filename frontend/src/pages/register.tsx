@@ -136,15 +136,6 @@ function Register() {
   const [specialization, setSpecialization] = useState('')
   const [institution, setInstitution] = useState('')
 
-  // Redirect as soon as a session exists. This covers registration, automatic
-  // sign-in and any session restored by the AuthProvider, so every account
-  // type always lands on the dashboard that matches its role.
-  useEffect(() => {
-    if (user && token) {
-      navigate(dashboardPathForUser(user), { replace: true })
-    }
-  }, [user, token, navigate])
-
   // Validation problems are rendered at the top of the form, so bring them
   // into view when a submission fails.
   useEffect(() => {

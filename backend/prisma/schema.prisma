@@ -192,6 +192,7 @@ enum NotificationType {
 
 enum AuditAction {
   DONOR_VERIFICATION_DECIDED
+  DOCTOR_REVIEW_ASSIGNED
   HOSPITAL_REGISTRATION_DECIDED
   USER_ROLE_CHANGED
   USER_STATUS_CHANGED
@@ -237,6 +238,9 @@ model User {
   hospitalStaffMember HospitalStaffMember?
   medicalReports      MedicalReport[]
   passwordResetToken  PasswordResetToken?
+
+  doctorReviewAssignments        DoctorReviewAssignment[] @relation("DoctorReviewAssignments")
+  doctorReviewAssignmentsCreated DoctorReviewAssignment[] @relation("DoctorReviewAssignmentsCreated")
 
   notifications          Notification[]
   notificationPreference NotificationPreference?
@@ -297,10 +301,11 @@ model DonorProfile {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  availabilities  DonorAvailabilitySchedule[]
-  medicalReports  MedicalReport[]
-  donationHistory DonationRecord[]
-  reservations    Reservation[]
+  availabilities   DonorAvailabilitySchedule[]
+  medicalReports   MedicalReport[]
+  donationHistory  DonationRecord[]
+  reservations     Reservation[]
+  reviewAssignment DoctorReviewAssignment?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -360,6 +365,21 @@ model DoctorProfile {
   updatedAt         DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DoctorReviewAssignment {
+  id               Int      @id @default(autoincrement())
+  donorProfileId   Int      @unique
+  doctorUserId     Int
+  assignedByUserId Int?
+  assignedAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  donorProfile DonorProfile @relation(fields: [donorProfileId], references: [id], onDelete: Cascade)
+  doctor       User         @relation("DoctorReviewAssignments", fields: [doctorUserId], references: [id], onDelete: Cascade)
+  assignedBy   User?        @relation("DoctorReviewAssignmentsCreated", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([doctorUserId])
 }
 
 model HospitalStaffMember {
@@ -592,17 +612,17 @@ model Notification {
 }
 
 model AuditLog {
-  id            Int         @id @default(autoincrement())
-  actorUserId   Int?
-  actorName     String?
-  actorRole     UserRole?
-  action        AuditAction
-  entityType    String
-  entityId      Int?
-  summary       String      @db.Text
-  metadata      Json?
-  ipAddress     String?
-  createdAt     DateTime    @default(now())
+  id          Int         @id @default(autoincrement())
+  actorUserId Int?
+  actorName   String?
+  actorRole   UserRole?
+  action      AuditAction
+  entityType  String
+  entityId    Int?
+  summary     String      @db.Text
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime    @default(now())
 
   @@index([action])
   @@index([actorUserId])

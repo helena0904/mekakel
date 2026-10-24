@@ -8,7 +8,6 @@ import {
   consumeReservation,
   createReservation,
   getReservations,
-  recordDonorResponse,
   releaseReservation,
   isReservationOpen,
   DONOR_RESPONSE_STATUS_LABELS,
@@ -16,7 +15,6 @@ import {
   reservationStatusBadgeClass,
 } from '../../services/reservation.service'
 import type {
-  DonorResponseStatusValue,
   Reservation,
   ReservationStatusValue,
 } from '../../services/reservation.service'
@@ -35,10 +33,6 @@ import type { HospitalStaffRoleValue } from '../../services/hospital.service'
 const STATUS_OPTIONS = Object.keys(
   RESERVATION_STATUS_LABELS
 ) as ReservationStatusValue[]
-
-const DONOR_RESPONSE_OPTIONS: Array<
-  Exclude<DonorResponseStatusValue, 'PENDING'>
-> = ['ACCEPTED', 'DECLINED', 'NO_SHOW']
 
 const DEFAULT_TTL_MINUTES = 1440
 
@@ -246,43 +240,6 @@ function ReservationsPage() {
         err instanceof Error
           ? err.message
           : 'Unable to update the reservation'
-      )
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  async function handleDonorResponse(
-    reservation: Reservation,
-    donorResponse: Exclude<
-      DonorResponseStatusValue,
-      'PENDING'
-    >
-  ) {
-    if (busyId !== null) {
-      return
-    }
-
-    setError('')
-    setBusyId(reservation.id)
-
-    try {
-      const updated = await recordDonorResponse(
-        reservation.id,
-        donorResponse
-      )
-      setReservations((previous) =>
-        previous.map((item) =>
-          item.id === updated.id ? updated : item
-        )
-      )
-      setSuccess('Donor response recorded.')
-      await reloadFormOptions()
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to record the donor response'
       )
     } finally {
       setBusyId(null)
@@ -559,42 +516,13 @@ function ReservationsPage() {
                                       .name
                                   : `Donor #${reservation.donorProfileId}`}
                               </span>
-                              <select
-                                value={reservation.donorResponse}
-                              onChange={(event) =>
-                                handleDonorResponse(
-                                  reservation,
-                                  event.target
-                                    .value as Exclude<
-                                    DonorResponseStatusValue,
-                                    'PENDING'
-                                  >
-                                )
-                              }
-                                disabled={
-                                  !open || busyId !== null
+                              <span className="status-badge status-badge-info">
+                                {
+                                  DONOR_RESPONSE_STATUS_LABELS[
+                                    reservation.donorResponse
+                                  ]
                                 }
-                              >
-                                <option value="PENDING">
-                                  {
-                                    DONOR_RESPONSE_STATUS_LABELS.PENDING
-                                  }
-                                </option>
-                                {DONOR_RESPONSE_OPTIONS.map(
-                                  (option) => (
-                                    <option
-                                      key={option}
-                                      value={option}
-                                    >
-                                      {
-                                        DONOR_RESPONSE_STATUS_LABELS[
-                                          option
-                                        ]
-                                      }
-                                    </option>
-                                  )
-                                )}
-                              </select>
+                              </span>
                             </>
                           ) : (
                             '—'

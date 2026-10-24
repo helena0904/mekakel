@@ -27,10 +27,28 @@ function parseId(value: unknown): number | null {
   return id
 }
 
+function doctorUserIdFrom(
+  req: AuthRequest,
+  res: Response
+): number | null {
+  if (!req.user) {
+    res.status(401).json({ message: 'Authentication required' })
+    return null
+  }
+
+  return req.user.userId
+}
+
 export async function getVerificationQueue(
   req: AuthRequest,
   res: Response
 ) {
+  const doctorUserId = doctorUserIdFrom(req, res)
+
+  if (doctorUserId === null) {
+    return
+  }
+
   const parsed = listVerificationQueueQuerySchema.safeParse(
     req.query
   )
@@ -44,7 +62,10 @@ export async function getVerificationQueue(
   }
 
   try {
-    const donors = await listVerificationQueue(parsed.data)
+    const donors = await listVerificationQueue(
+      doctorUserId,
+      parsed.data
+    )
 
     return res.status(200).json({ donors })
   } catch (error) {
@@ -60,6 +81,12 @@ export async function getVerification(
   req: AuthRequest,
   res: Response
 ) {
+  const doctorUserId = doctorUserIdFrom(req, res)
+
+  if (doctorUserId === null) {
+    return
+  }
+
   const donorProfileId = parseId(req.params.id)
 
   if (donorProfileId === null) {
@@ -69,7 +96,10 @@ export async function getVerification(
   }
 
   try {
-    const detail = await getVerificationDetail(donorProfileId)
+    const detail = await getVerificationDetail(
+      doctorUserId,
+      donorProfileId
+    )
 
     if (!detail) {
       return res.status(404).json({
@@ -91,6 +121,12 @@ export async function postVerificationDecision(
   req: AuthRequest,
   res: Response
 ) {
+  const doctorUserId = doctorUserIdFrom(req, res)
+
+  if (doctorUserId === null) {
+    return
+  }
+
   const donorProfileId = parseId(req.params.id)
 
   if (donorProfileId === null) {
@@ -115,7 +151,8 @@ export async function postVerificationDecision(
     const donor = await decideDonorVerification(
       donorProfileId,
       parsed.data,
-      actorFromRequest(req)
+      actorFromRequest(req),
+      doctorUserId
     )
 
     if (!donor) {
@@ -141,6 +178,12 @@ export async function getReportFile(
   req: AuthRequest,
   res: Response
 ) {
+  const doctorUserId = doctorUserIdFrom(req, res)
+
+  if (doctorUserId === null) {
+    return
+  }
+
   const reportId = parseId(req.params.id)
 
   if (reportId === null) {
@@ -150,7 +193,10 @@ export async function getReportFile(
   }
 
   try {
-    const report = await findReportForReview(reportId)
+    const report = await findReportForReview(
+      reportId,
+      doctorUserId
+    )
 
     if (!report) {
       return res.status(404).json({

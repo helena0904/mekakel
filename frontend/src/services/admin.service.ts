@@ -4,6 +4,10 @@ import type {
   HospitalStatusValue,
   ReviewHospitalInput,
 } from './hospital.service'
+import type {
+  VerificationQueueItem,
+  VerificationQueueStatus,
+} from './doctor.service'
 
 export type UserRoleValue =
   | 'DONOR'
@@ -14,6 +18,7 @@ export type UserRoleValue =
 
 export type AuditActionValue =
   | 'DONOR_VERIFICATION_DECIDED'
+  | 'DOCTOR_REVIEW_ASSIGNED'
   | 'HOSPITAL_REGISTRATION_DECIDED'
   | 'USER_ROLE_CHANGED'
   | 'USER_STATUS_CHANGED'
@@ -104,6 +109,38 @@ export interface UpdateGovernanceSettingsInput {
   compatibility?: Partial<CompatibilitySettings>
 }
 
+export interface ReviewDoctor {
+  id: number
+  name: string
+  email: string
+  isActive: boolean
+}
+
+export interface ReviewAssignment {
+  id: number
+  donorProfileId: number
+  doctorUserId: number
+  assignedByUserId: number | null
+  assignedAt: string
+  updatedAt: string
+  doctor: ReviewDoctor
+  assignedBy: { id: number; name: string } | null
+}
+
+export type ReviewAssignmentDonor = VerificationQueueItem & {
+  reviewAssignment: ReviewAssignment | null
+}
+
+export interface ReviewAssignmentFilters {
+  status?: VerificationQueueStatus
+  limit?: number
+}
+
+export interface ReviewAssignmentsResult {
+  donors: ReviewAssignmentDonor[]
+  doctors: ReviewDoctor[]
+}
+
 function buildQuery(filters: object): string {
   const params = new URLSearchParams()
 
@@ -169,6 +206,28 @@ export async function reviewHospitalApproval(
   return response.hospital
 }
 
+export async function listReviewAssignments(
+  filters: ReviewAssignmentFilters = {}
+): Promise<ReviewAssignmentsResult> {
+  return apiRequest(
+    `/admin/review-assignments${buildQuery(filters)}`
+  )
+}
+
+export async function assignDonorReview(
+  donorProfileId: number,
+  doctorUserId: number
+): Promise<ReviewAssignment> {
+  const response = await apiRequest<{
+    assignment: ReviewAssignment
+  }>(`/admin/donor-reviews/${donorProfileId}/assignment`, {
+    method: 'POST',
+    body: JSON.stringify({ doctorUserId }),
+  })
+
+  return response.assignment
+}
+
 export async function listAuditLogs(
   filters: AuditLogFilters = {}
 ): Promise<AuditLog[]> {
@@ -213,6 +272,7 @@ export const AUDIT_ACTION_LABELS: Record<
   string
 > = {
   DONOR_VERIFICATION_DECIDED: 'Donor verification decision',
+  DOCTOR_REVIEW_ASSIGNED: 'Doctor review assigned',
   HOSPITAL_REGISTRATION_DECIDED: 'Hospital registration decision',
   USER_ROLE_CHANGED: 'User role changed',
   USER_STATUS_CHANGED: 'User status changed',

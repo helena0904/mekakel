@@ -47,6 +47,16 @@ const reservationInclude = {
       status: true,
     },
   },
+  hospitalProfile: {
+    select: {
+      id: true,
+      hospitalName: true,
+      address: true,
+      subcity: true,
+      wereda: true,
+      phone: true,
+    },
+  },
 } satisfies Prisma.ReservationInclude
 
 export type ReservationWithRelations =
@@ -148,6 +158,29 @@ function buildWhere(
   return where
 }
 
+function buildDonorWhere(
+  donorProfileId: number,
+  filters: ListReservationsQuery
+): Prisma.ReservationWhereInput {
+  const where: Prisma.ReservationWhereInput = {
+    donorProfileId,
+  }
+
+  if (filters.status) {
+    where.status = filters.status
+  }
+
+  if (filters.bloodUnitId) {
+    where.bloodUnitId = filters.bloodUnitId
+  }
+
+  if (filters.bloodRequestId) {
+    where.bloodRequestId = filters.bloodRequestId
+  }
+
+  return where
+}
+
 export function resolveTargetUnitStatus(
   unit: {
     screeningStatus: string
@@ -183,6 +216,23 @@ export async function listReservations(
 
   const reservations = await prisma.reservation.findMany({
     where: buildWhere(hospitalProfileId, filters),
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    include: reservationInclude,
+  })
+
+  return reservations.map((reservation) =>
+    serializeReservation(reservation, now)
+  )
+}
+
+export async function listDonorReservations(
+  donorProfileId: number,
+  filters: ListReservationsQuery = {}
+): Promise<SerializedReservation[]> {
+  const now = new Date()
+
+  const reservations = await prisma.reservation.findMany({
+    where: buildDonorWhere(donorProfileId, filters),
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     include: reservationInclude,
   })
@@ -674,19 +724,17 @@ export function consumeReservation(
 }
 
 export function recordDonorResponse(
-  hospitalProfileId: number,
+  donorProfileId: number,
   reservationId: number,
   data: DonorResponseInput
 ): Promise<SerializedReservation> {
   const now = new Date()
-  const terminal =
-    data.donorResponse === 'DECLINED' ||
-    data.donorResponse === 'NO_SHOW'
+  const terminal = data.donorResponse === 'DECLINED'
 
   return prisma
     .$transaction(async (tx) => {
       const existing = await tx.reservation.findFirst({
-        where: { id: reservationId, hospitalProfileId },
+        where: { id: reservationId, donorProfileId },
         include: { bloodUnit: true },
       })
 
@@ -694,19 +742,23 @@ export function recordDonorResponse(
         throw new AppError('Reservation not found', 404)
       }
 
-      if (!existing.donorProfileId) {
+      if (existing.expiresAt.getTime() <= now.getTime()) {
         throw new AppError(
-          'This reservation has no donor response to record',
+          'This reservation has expired and can no longer be answered',
           409
         )
       }
 
-      if (
-        existing.status !== 'ACTIVE' &&
-        existing.status !== 'CONFIRMED'
-      ) {
+      if (existing.status !== 'ACTIVE') {
         throw new AppError(
-          'Donor responses can only be recorded on active reservations',
+          'This reservation is no longer open for a donor response',
+          409
+        )
+      }
+
+      if (existing.donorResponse !== 'PENDING') {
+        throw new AppError(
+          'A donor response has already been recorded',
           409
         )
       }
@@ -714,20 +766,19 @@ export function recordDonorResponse(
       const updated = await tx.reservation.updateMany({
         where: {
           id: reservationId,
-          hospitalProfileId,
-          status: { in: ['ACTIVE', 'CONFIRMED'] },
+          donorProfileId,
+          status: 'ACTIVE',
+          donorResponse: 'PENDING',
+          expiresAt: { gt: now },
         },
         data: {
           donorResponse: data.donorResponse,
           donorRespondedAt: now,
           status: terminal ? 'CANCELLED' : 'CONFIRMED',
-          confirmedAt: terminal ? undefined : now,
+          confirmedAt: terminal ? null : now,
           cancelledAt: terminal ? now : null,
           reason: terminal
-            ? data.note ||
-              (data.donorResponse === 'DECLINED'
-                ? 'Donor declined the request'
-                : 'Donor did not show up')
+            ? data.note || 'Donor declined the request'
             : existing.reason,
           notes: data.note ? data.note : undefined,
         },

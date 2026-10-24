@@ -151,6 +151,7 @@ Hospital staff also carry a staff role: `OWNER`, `ADMIN`, `MANAGER`, `TECHNICIAN
 | FR-DONOR-08 | The system shall keep medical reports private and require authorization to access them. |
 | FR-DONOR-09 | The system shall maintain donation history. |
 | FR-DONOR-10 | The system shall allow donors to opt out of matching and control contact/location sharing. |
+| FR-DONOR-11 | The system shall restrict a doctor to viewing and deciding only donors explicitly assigned to that doctor by an administrator. |
 
 ### 4.3 Hospital Management
 
@@ -163,6 +164,7 @@ Hospital staff also carry a staff role: `OWNER`, `ADMIN`, `MANAGER`, `TECHNICIAN
 | FR-HOSP-05 | The system shall enforce hospital staff roles and active status. |
 | FR-HOSP-06 | The system shall support hospital search for nearby donors and hospitals. |
 | FR-HOSP-07 | The system shall return donor details with privacy-aware contact and location rules. |
+| FR-HOSP-08 | The system shall expose donor medical reports to an approved hospital only when that hospital holds a confirmed, unexpired reservation that the donor accepted. |
 
 ### 4.4 Blood Inventory
 
@@ -208,11 +210,12 @@ Hospital staff also carry a staff role: `OWNER`, `ADMIN`, `MANAGER`, `TECHNICIAN
 | FR-RES-01 | The system shall allow a hospital to reserve a compatible blood unit or request a donor response. |
 | FR-RES-02 | Reservations shall have an expiry time. |
 | FR-RES-03 | The system shall track reservation status: active, confirmed, cancelled, expired, released, or consumed. |
-| FR-RES-04 | The system shall track donor response: pending, accepted, declined, or no-show. |
+| FR-RES-04 | The system shall track donor response: pending, accepted, or declined. |
 | FR-RES-05 | The system shall prevent double-booking of the same unit. |
 | FR-RES-06 | The system shall expire overdue reservations automatically. |
 | FR-RES-07 | The system shall release reserved units when a reservation is cancelled or expired. |
 | FR-RES-08 | The system shall record reservation transitions in the audit log and notify relevant users. |
+| FR-RES-09 | Only the authenticated donor assigned to a reservation may accept or decline it; hospitals and other donors shall not record donor responses. |
 
 ### 4.8 Transfers
 
@@ -247,6 +250,7 @@ Hospital staff also carry a staff role: `OWNER`, `ADMIN`, `MANAGER`, `TECHNICIAN
 | FR-ADM-05 | The system shall let admins view audit logs with filters. |
 | FR-ADM-06 | The system shall let admins view and update system settings. |
 | FR-ADM-07 | The system shall prevent unauthorized users from accessing admin functions. |
+| FR-ADM-08 | The system shall let admins assign or reassign a donor review to an active doctor and record the assignment in the audit log. |
 
 ## 5. Non-Functional Requirements
 
@@ -305,7 +309,7 @@ Hospital staff also carry a staff role: `OWNER`, `ADMIN`, `MANAGER`, `TECHNICIAN
 | --- | --- |
 | NFR-PRIV-01 | Donor contact details shall be visible only when consent and role rules allow. |
 | NFR-PRIV-02 | Medical information shall be accessible only to authorized users. |
-| NFR-PRIV-03 | Access to medical reports shall be audited. |
+| NFR-PRIV-03 | Access to medical reports shall be authorized by role, hospital-donor relationship, or doctor assignment, and shall be audited. |
 | NFR-PRIV-04 | The system shall state that compatibility results are advisory and not a clinical decision. |
 
 ## 6. Data Requirements
@@ -314,7 +318,7 @@ Core entities include:
 
 - `User`, `PasswordResetToken`, `RevokedToken`, `RateLimitCounter`
 - `DonorProfile`, `DonorAvailabilitySchedule`, `MedicalReport`, `DonationRecord`
-- `HospitalProfile`, `HospitalStaffMember`, `DoctorProfile`
+- `HospitalProfile`, `HospitalStaffMember`, `DoctorProfile`, `DoctorReviewAssignment`
 - `BloodUnit`, `BloodRequest`, `Reservation`, `Transfer`, `TransferEvent`
 - `Notification`, `NotificationPreference`
 - `AuditLog`, `SystemSetting`
@@ -324,6 +328,7 @@ Key relationships:
 - A user has at most one donor, hospital, or doctor profile.
 - A hospital has many staff members, blood units, requests, reservations, and transfers.
 - A reservation may reference a blood unit and/or a donor.
+- A donor has at most one active doctor review assignment.
 - A transfer moves one blood unit between two hospitals.
 - Notifications and audit logs reference users and related entities.
 

@@ -215,6 +215,11 @@ function DonorDashboard() {
                     Donation history ({data.stats.totalDonations})
                   </Link>
                 </li>
+                <li>
+                  <Link to="/donor/requests">
+                    Blood requests from hospitals
+                  </Link>
+                </li>
               </ul>
             </section>
           </>

@@ -281,7 +281,11 @@ export async function getDonorDetail(
   }
 
   try {
-    const donor = await getNearbyDonorDetail(donorProfileId)
+    const donor = await getNearbyDonorDetail(
+      donorProfileId,
+      access.hospitalProfileId,
+      isHospitalApproved(access)
+    )
 
     if (!donor) {
       return res.status(404).json({
@@ -374,6 +378,12 @@ export async function getDonorReportFile(
     return
   }
 
+  if (!isHospitalApproved(access)) {
+    return res.status(403).json({
+      message: 'Hospital approval is required to access medical reports',
+    })
+  }
+
   const reportId = Number(req.params.id)
 
   if (!Number.isInteger(reportId) || reportId <= 0) {
@@ -383,7 +393,10 @@ export async function getDonorReportFile(
   }
 
   try {
-    const report = await findDonorReportForHospital(reportId)
+    const report = await findDonorReportForHospital(
+      reportId,
+      access.hospitalProfileId
+    )
 
     if (!report) {
       return res.status(404).json({

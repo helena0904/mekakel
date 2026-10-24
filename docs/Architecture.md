@@ -142,7 +142,7 @@ Mounted under `/api`:
 - `/transfers` — transfer lifecycle.
 - `/notifications` — in-app notifications and preferences.
 - `/doctor` — verification queue and medical report decisions.
-- `/admin` — users, hospitals, audit logs, settings.
+- `/admin` — users, hospitals, review assignments, audit logs, settings.
 
 ### 5.4 Error Handling
 
@@ -168,6 +168,7 @@ Mounted under `/api`:
 ### 6.3 Supporting Entities
 
 - `MedicalReport` stores donor report metadata and private file references.
+- `DoctorReviewAssignment` links a donor to the single doctor allowed to review that donor's reports.
 - `DonationRecord` stores donation history.
 - `Notification` and `NotificationPreference` support messaging.
 - `AuditLog` records sensitive actions.
@@ -192,8 +193,9 @@ Indexes cover common access paths:
 2. Backend validates input and hashes the password.
 3. A profile is created with a pending verification status where applicable.
 4. Donors may submit Fayda identity data and medical reports.
-5. Doctors review donor reports; admins review hospital registration.
-6. Approval activates the relevant capabilities and creates notifications.
+5. An admin assigns each donor review to an active doctor.
+6. The assigned doctor reviews donor reports; admins review hospital registration.
+7. Approval activates the relevant capabilities and creates notifications.
 
 ### 7.2 Blood Request to Reservation
 
@@ -237,6 +239,9 @@ Each transition records a `TransferEvent`, updates the blood unit state where re
 - CORS restricted to configured origins.
 - Rate limiting for login and sensitive endpoints.
 - Private medical uploads served only through authorized endpoints.
+- Hospital report access requires an approved hospital and a confirmed, unexpired reservation accepted by that donor.
+- Doctor report access requires an active doctor account and an explicit admin review assignment.
+- Donor responses are recorded only by the authenticated donor assigned to the reservation; hospitals cannot accept or decline on a donor's behalf.
 - Audit logging for verification, inventory, reservation, transfer, role, and settings actions.
 - Secrets and database credentials supplied through environment variables.
 

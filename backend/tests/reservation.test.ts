@@ -421,9 +421,10 @@ describe('reservation transitions', () => {
 })
 
 describe('donor response tracking', () => {
-  it('records acceptance, decline and no-show outcomes', async () => {
+  it('only lets the assigned donor accept a request', async () => {
     const hospital = await approvedHospital()
     const donor = await addDonor()
+    const otherDonor = await addDonor()
 
     const created = await request(app)
       .post('/api/reservations')
@@ -438,9 +439,30 @@ describe('donor response tracking', () => {
       created.body.reservation.donorProfile.address
     ).toBeNull()
 
-    const accepted = await request(app)
+    const hospitalAttempt = await request(app)
       .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
       .set('Authorization', auth(hospital.token))
+      .send({ donorResponse: 'ACCEPTED' })
+
+    expect(hospitalAttempt.status).toBe(403)
+
+    const otherDonorAttempt = await request(app)
+      .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(otherDonor.token))
+      .send({ donorResponse: 'ACCEPTED' })
+
+    expect(otherDonorAttempt.status).toBe(404)
+
+    const invalidStatus = await request(app)
+      .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(donor.token))
+      .send({ donorResponse: 'NO_SHOW' })
+
+    expect(invalidStatus.status).toBe(400)
+
+    const accepted = await request(app)
+      .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(donor.token))
       .send({ donorResponse: 'ACCEPTED' })
 
     expect(accepted.status).toBe(200)
@@ -455,16 +477,132 @@ describe('donor response tracking', () => {
       accepted.body.reservation.donorRespondedAt
     ).toBeTruthy()
 
-    const noShow = await request(app)
+    const repeated = await request(app)
       .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
-      .set('Authorization', auth(hospital.token))
-      .send({ donorResponse: 'NO_SHOW' })
+      .set('Authorization', auth(donor.token))
+      .send({ donorResponse: 'DECLINED' })
 
-    expect(noShow.status).toBe(200)
-    expect(noShow.body.reservation.donorResponse).toBe(
-      'NO_SHOW'
+    expect(repeated.status).toBe(409)
+  })
+
+  it('records a decline and closes the reservation', async () => {
+    const hospital = await approvedHospital()
+    const donor = await addDonor()
+
+    const created = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: donor.id })
+
+    expect(created.status).toBe(201)
+
+    const declined = await request(app)
+      .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(donor.token))
+      .send({
+        donorResponse: 'DECLINED',
+        note: 'Unable to travel',
+      })
+
+    expect(declined.status).toBe(200)
+    expect(declined.body.reservation.donorResponse).toBe(
+      'DECLINED'
     )
-    expect(noShow.body.reservation.status).toBe('CANCELLED')
+    expect(declined.body.reservation.status).toBe('CANCELLED')
+    expect(declined.body.reservation.reason).toBe(
+      'Unable to travel'
+    )
+  })
+
+  it('rejects responses on expired or cancelled reservations', async () => {
+    const hospital = await approvedHospital()
+    const expiredDonor = await addDonor()
+    const cancelledDonor = await addDonor()
+
+    const expired = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: expiredDonor.id })
+
+    await prisma.reservation.update({
+      where: { id: expired.body.reservation.id },
+      data: { expiresAt: new Date(Date.now() - 60_000) },
+    })
+
+    const expiredAttempt = await request(app)
+      .patch(`/api/reservations/${expired.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(expiredDonor.token))
+      .send({ donorResponse: 'ACCEPTED' })
+
+    expect(expiredAttempt.status).toBe(409)
+
+    const cancelled = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: cancelledDonor.id })
+
+    const cancel = await request(app)
+      .post(`/api/reservations/${cancelled.body.reservation.id}/cancel`)
+      .set('Authorization', auth(hospital.token))
+      .send({ reason: 'No longer needed' })
+
+    expect(cancel.status).toBe(200)
+
+    const cancelledAttempt = await request(app)
+      .patch(`/api/reservations/${cancelled.body.reservation.id}/donor-response`)
+      .set('Authorization', auth(cancelledDonor.token))
+      .send({ donorResponse: 'ACCEPTED' })
+
+    expect(cancelledAttempt.status).toBe(409)
+  })
+
+  it('lists only the signed-in donor reservations', async () => {
+    const hospital = await approvedHospital()
+    const donor = await addDonor()
+    const otherDonor = await addDonor()
+
+    const first = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: donor.id })
+
+    const second = await request(app)
+      .post('/api/reservations')
+      .set('Authorization', auth(hospital.token))
+      .send({ donorProfileId: otherDonor.id })
+
+    expect(first.status).toBe(201)
+    expect(second.status).toBe(201)
+
+    const donorList = await request(app)
+      .get('/api/reservations/donor')
+      .set('Authorization', auth(donor.token))
+
+    expect(donorList.status).toBe(200)
+    expect(donorList.body.reservations).toHaveLength(1)
+    expect(donorList.body.reservations[0].id).toBe(
+      first.body.reservation.id
+    )
+    expect(
+      donorList.body.reservations[0].hospitalProfile
+        .hospitalName
+    ).toBeTruthy()
+
+    const otherList = await request(app)
+      .get('/api/reservations/donor')
+      .set('Authorization', auth(otherDonor.token))
+
+    expect(otherList.status).toBe(200)
+    expect(otherList.body.reservations).toHaveLength(1)
+    expect(otherList.body.reservations[0].id).toBe(
+      second.body.reservation.id
+    )
+
+    const hospitalList = await request(app)
+      .get('/api/reservations/donor')
+      .set('Authorization', auth(hospital.token))
+
+    expect(hospitalList.status).toBe(403)
   })
 
   it('requires an accepted donor before a donor reservation can be confirmed', async () => {
@@ -488,7 +626,7 @@ describe('donor response tracking', () => {
     // Acceptance is the confirmation step for a donor reservation.
     const accepted = await request(app)
       .patch(`/api/reservations/${created.body.reservation.id}/donor-response`)
-      .set('Authorization', auth(hospital.token))
+      .set('Authorization', auth(donor.token))
       .send({ donorResponse: 'ACCEPTED' })
 
     expect(accepted.status).toBe(200)
@@ -520,7 +658,6 @@ describe('donor response tracking', () => {
     expect(res.status).toBe(409)
   })
 })
-
 describe('reservation expiry job', () => {
   it('expires due reservations and returns eligible units to stock', async () => {
     const hospital = await approvedHospital()

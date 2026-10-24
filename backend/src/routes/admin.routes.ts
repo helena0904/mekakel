@@ -20,6 +20,15 @@ router.post(
 router.get('/users', adminController.getUsers)
 router.patch('/users/:id', adminController.patchUser)
 
+router.get(
+  '/review-assignments',
+  adminController.getReviewAssignments
+)
+router.post(
+  '/donor-reviews/:id/assignment',
+  adminController.postReviewAssignment
+)
+
 router.get('/audit-logs', adminController.getAuditLogs)
 
 router.get('/settings', adminController.getSettings)

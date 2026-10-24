@@ -81,11 +81,7 @@ export const listReservationsQuerySchema = z.object({
 })
 
 export const donorResponseSchema = z.object({
-  donorResponse: z.enum([
-    'ACCEPTED',
-    'DECLINED',
-    'NO_SHOW',
-  ]),
+  donorResponse: z.enum(['ACCEPTED', 'DECLINED']),
 
   note: z.string().trim().max(500).optional(),
 })

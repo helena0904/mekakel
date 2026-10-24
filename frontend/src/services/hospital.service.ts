@@ -150,6 +150,7 @@ export interface HospitalDonorDetail {
   nextEligibleDate: string | null
   donationIntervalDays: number
   medicalReports: HospitalDonorReport[]
+  reportsRestricted: boolean
   donationHistory: HospitalDonorDonation[]
   availabilities: Array<{ day: string; time: string }>
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../hooks/useAuth'
 import {
@@ -9,7 +9,8 @@ import {
 import type { GovernanceSettings } from '../../services/admin.service'
 
 function AdminDashboard() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const [settings, setSettings] =
     useState<GovernanceSettings | null>(null)
@@ -76,6 +77,11 @@ function AdminDashboard() {
     }
   }
 
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
+
   return (
     <main className="dashboard-page">
       <div className="dashboard-container">
@@ -105,6 +111,11 @@ function AdminDashboard() {
             <li>
               <Link to="/admin/users">
                 Manage users, roles and access
+              </Link>
+            </li>
+            <li>
+              <Link to="/admin/review-assignments">
+                Assign doctors to donor reviews
               </Link>
             </li>
             <li>
@@ -273,6 +284,10 @@ function AdminDashboard() {
             </>
           )}
         </section>
+
+        <button type="button" onClick={handleLogout}>
+          Logout
+        </button>
       </div>
     </main>
   )

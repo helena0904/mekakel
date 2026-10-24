@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 
 import { useAuth } from '../../hooks/useAuth'
 import { listVerificationQueue } from '../../services/doctor.service'
 
 function DoctorDashboard() {
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const [pending, setPending] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -37,6 +38,11 @@ function DoctorDashboard() {
       cancelled = true
     }
   }, [])
+
+  function handleLogout() {
+    logout()
+    navigate('/login')
+  }
 
   return (
     <main className="dashboard-page">
@@ -70,6 +76,10 @@ function DoctorDashboard() {
             </li>
           </ul>
         </section>
+
+        <button type="button" onClick={handleLogout}>
+          Logout
+        </button>
       </div>
     </main>
   )
