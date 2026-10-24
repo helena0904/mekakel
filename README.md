@@ -48,7 +48,7 @@ Access to safe blood at the right time can be the difference between life and de
 
 ## Project Status
 
-🚧 In development
+-COMPLETED
 
 ## Repository Structure
 
@@ -64,3 +64,5 @@ mekakel/
 
 - **Full Name:** Helen Tesfaye
 - **ID:** CTC-1586-26
+  
+## https://mekakel.vercel.app/   (Use this link to access this website)
