@@ -1,280 +1,252 @@
-# MEKAKEL — UI Design Guidelines
+# MEKAKEL — UI Design
 
-## 1. Design Vision
+Design specification for the MEKAKEL web client (React 19, Tailwind CSS 4, global `index.css`).
+Companion files: `index.css` (implementation), the UI Design canvas (visual mockups), the SRS and System Architecture documents.
 
-MEKAKEL is a healthcare coordination platform. The interface should feel:
+---
 
-- Trustworthy and calm
-- Clinical but approachable
-- Fast to scan for busy hospital staff
-- Clear about what is safe, pending, or urgent
+## 1. Design goals
 
-The visual identity uses a warm red accent to reference blood donation, balanced by generous white space and soft neutral surfaces so the product does not feel alarming.
+| Goal | What it means in the interface |
+|---|---|
+| Trust | Calm white surfaces, one strong brand red, clear medical warnings and verification states |
+| Speed under pressure | Emergency requests first, one primary action per screen, matching results ranked and labelled |
+| Clarity | Plain labels, status badges with text (never color alone), inline validation messages |
+| Accessibility | Visible focus rings, 4.5:1+ text contrast, keyboard-reachable forms, reduced-motion support |
+| Responsive | Usable from 360 px phones to wide desktops; tables scroll inside their own container |
 
-## 2. Brand Identity
+---
 
-### 2.1 Logo
+## 2. Design tokens
 
-- The MEKAKEL logo appears in the navigation bar inside a white circular badge.
-- The wordmark is uppercase in the heading font with slight letter spacing.
-- The logo is also used as the browser favicon.
+### 2.1 Color
 
-### 2.2 Color Palette
+| Token | Value | Use |
+|---|---|---|
+| `--red` | `#c8190b` | Primary buttons, links, headings accents, table headers |
+| `--red-dark` | `#a01208` | Hover and gradient end |
+| `--red-deep` | `#7d0e06` | Hero gradient start |
+| `--red-soft` | `#fdeceb` | Tinted backgrounds, info badges, alert boxes |
+| `--red-tint` | `#fff6f5` | Row hover, unread items |
+| `--red-ring` | `rgba(200,25,11,.16)` | Focus ring |
+| `--text` | `#1d1d1f` | Body text and headings |
+| `--text-2` | `#4a4a4f` | Secondary text |
+| `--muted` | `#6b6b72` | Helper text |
+| `--bg-soft` | `#f7f7f7` | Section and row backgrounds |
+| `--bg-page` | `#faf9f9` | Auth and dashboard page background |
+| `--border` | `#e6e6e6` | Card and divider lines |
+| `--border-strong` | `#d4d4d8` | Input borders |
 
-| Token | Value | Usage |
-| --- | --- | --- |
-| `--red` | `#be463d` | Primary actions, links, accents, navbar |
-| `--red-dark` | `#a01208` | Hover and pressed states |
-| `--red-soft` | `#fdeceb` | Highlights, alerts, unread notifications |
-| `--text` | `#0e0e0e` | Headings and primary text |
-| `--muted` | `#666666` | Secondary text and descriptions |
-| `--bg-soft` | `#f7f7f7` | Page sections and cards |
-| `--border` | `#e6e6e6` | Dividers and input borders |
-| White | `#ffffff` | Page background and cards |
+**Status colors**
 
-Status colors:
+| Status | Text | Background | Border |
+|---|---|---|---|
+| Success / approved | `#198754` | `#e8f5e9` | `#a5d6a7` |
+| Warning / pending | `#8a6d3b` | `#fff3cd` | `#f1df9c` |
+| Error / rejected | `#d32f2f` | `#ffebee` | `#ef9a9a` |
+| Info | `#c8190b` | `#fdeceb` | `#f0b8b4` |
 
-| Status | Background | Text |
-| --- | --- | --- |
-| Pending | `#fff3cd` | `#8a6d3b` |
-| Approved / success | `#e8f5e9` | `#198754` |
-| Rejected / error | `#ffebee` | `#d32f2f` |
-| Informational | `--red-soft` | `--red` |
+### 2.2 Typography
 
-### 2.3 Typography
+| Role | Font | Size | Weight |
+|---|---|---|---|
+| Hero title | Montserrat | clamp 30–52 px | 800, uppercase |
+| Page title (h1) | Montserrat | 24–32 px | 800 |
+| Section title (h2) | Montserrat | 24–34 px | 800, red underline accent |
+| Card title (h3) | Montserrat | 18–20 px | 700 |
+| Body | Poppins | 16 px, line-height 1.65 | 400 |
+| Helper / small | Poppins | 12.5–14 px | 400–500 |
+| Buttons, labels | Poppins | 13–15 px | 600 |
+| Nav links | Poppins | 13 px, uppercase, 0.04em tracking | 500 |
 
-| Role | Font | Weight |
-| --- | --- | --- |
-| Headings | Montserrat | 600–800 |
-| Body | Poppins | 400–600 |
+### 2.3 Shape, depth and motion
 
-Type scale:
+| Token | Value |
+|---|---|
+| Radius | 8 px (small) · 14 px (cards) · 20 px (page cards) · 999 px (buttons, badges) |
+| Shadow small | `0 1px 2px / 0 1px 3px` at 5–6% black |
+| Shadow card | `0 6px 24px` at 7% black |
+| Shadow hover | `0 14px 38px` at 13% black |
+| Shadow brand | `0 8px 22px` at 28% red (primary buttons) |
+| Motion | 0.2–0.4 s ease-out; cards lift 4–6 px on hover; page content fades up 0.5 s; disabled when `prefers-reduced-motion` |
+| Spacing | 4 px base: 8 · 12 · 16 · 20 · 24 · 32 · 48 · 72 · 88 px |
 
-- Page title: 30–44px
-- Section heading: 30px
-- Card heading: 18–20px
-- Body: 14–17px
-- Helper text: 13–14px
+---
 
-## 3. Layout System
+## 3. Components
 
-### 3.1 Global Structure
+| Component | Class | Specification |
+|---|---|---|
+| Navbar | `.navigationbar` | Sticky, frosted white logo row; red gradient link bar below with white uppercase links and animated underline on hover |
+| Hero | `.hero` | Full-width image, dark-to-red overlay, centered white title, one primary pill button |
+| Primary button | `.register-button`, `.login-button`, `.hero-buttons button` | Red gradient pill, white text, brand shadow, lifts 2 px on hover, grey when disabled |
+| Secondary button | `.back-button`, `.secondary-button` | White pill with red 2 px border; fills red on hover |
+| Danger button | `.danger-button` | Same as secondary, in error red |
+| Card | `.user-card`, `.dashboard-card`, `.form-section` | White, 1 px border, 14 px radius, soft shadow; hover lift on interactive cards |
+| Form field | `.form-group` | Label above (600), 12 × 14 px padding, 1.5 px border, red focus ring, helper text below |
+| File input | `.form-group input[type=file]` | Dashed box with red pill "Choose file" button |
+| Alert | `.register-error`, `.register-success` | Colored background, 5 px left bar, 14.5 px text |
+| Status badge | `.status-badge-*` | Pill with leading dot: pending (amber), approved (green), rejected (red), info (soft red) |
+| Table | `.data-table` in `.table-wrapper` | Red gradient header, uppercase 12.5 px labels, zebra rows, red-tint hover, horizontal scroll on small screens |
+| Availability row | `.availability-row` | Checkbox, day label, two time inputs; disabled times greyed |
+| Donor link | `.donor-links a` | Full-width row with arrow; slides 3 px on hover |
+| Eligibility list | `.eligibility-list` | Row per rule with pass (green), fail (red) or info (red) mark |
+| Notification item | `.notification-item` | White card with left border; unread uses red border and tint |
+| Footer | `.footer` | Dark charcoal gradient, 4 px red top border, white links |
 
-```text
-Navbar (red)
-Page content
-Footer (dark gray with red top border)
-```
+---
 
-- Maximum content width is typically 800–900px for forms and reading-heavy pages.
-- Sections use 4.5rem vertical padding on desktop and 3rem on mobile.
-- Cards use white backgrounds, 8px radii, and soft shadows.
-
-### 3.2 Navigation Bar
-
-- Single red bar with the logo on the left.
-- Links are white, 13px, medium weight.
-- Hover state uses a white underline.
-- Primary registration action is visually emphasized.
-- On small screens, links wrap and center below the logo.
-
-### 3.3 Footer
-
-- Dark gray background with a red top border.
-- Centered text in a muted light color.
-- Used for project identity and supporting links.
-
-### 3.4 Hero Section
-
-- Split layout: text content on the left, hero image on the right.
-- Background uses a soft white-to-pink gradient.
-- The image's left edge fades into the background for a seamless blend.
-- Heading is dark and bold; supporting copy is muted.
-- Primary action is a red pill button.
-- On mobile, the layout stacks with the image above the text.
-
-## 4. Page Inventory
-
-### 4.1 Public Pages
-
-| Route | Page | Purpose |
-| --- | --- | --- |
-| `/` | Home | Hero, about, audience, benefits, how it works, call to action |
-| `/login` | Login | Role/account selection and sign-in |
-| `/register` | Register | Donor, hospital, or doctor registration |
-| `/forgot-password` | Forgot password | Request a reset link |
-| `/reset-password` | Reset password | Set a new password |
-
-### 4.2 Donor Pages
-
-| Route | Page | Purpose |
-| --- | --- | --- |
-| `/donor-dashboard` | Donor dashboard | Verification status and donation activities |
-| `/donor/profile` | Donor profile | Personal, blood, contact, and consent details |
-| `/donor/availability` | Availability | Weekly availability schedule |
-| `/donor/medical-reports` | Medical reports | Upload and review report status |
-| `/donor/history` | Donation history | Past donations |
-
-### 4.3 Hospital Pages
-
-| Route | Page | Purpose |
-| --- | --- | --- |
-| `/hospital-dashboard` | Hospital dashboard | Institution status and hospital activities |
-| `/hospital/profile` | Hospital profile | Institution and contact details |
-| `/hospital/search` | Hospital search | Find nearby donors and hospitals |
-| `/hospital/inventory` | Blood inventory | Manage units, stock summary, expiry alerts |
-| `/hospital/requests` | Request list | View blood requests |
-| `/hospital/requests/new` | Create request | Submit a new blood request |
-| `/hospital/requests/:id` | Request details | View and manage a request |
-| `/hospital/requests/:id/matches` | Matching results | Compatible units and donors |
-| `/hospital/reservations` | Reservations | Manage reservations |
-| `/hospital/transfers` | Transfers | Manage transfers |
-| `/hospital/transfers/:id` | Transfer details | Track transfer state and events |
-
-### 4.4 Doctor Pages
-
-| Route | Page | Purpose |
-| --- | --- | --- |
-| `/doctor-dashboard` | Doctor dashboard | Verification workload overview |
-| `/doctor/verifications` | Verification queue | Donor reports awaiting review |
-| `/doctor/verifications/:id` | Review report | Eligibility checks and medical report review |
-
-### 4.5 Admin Pages
-
-| Route | Page | Purpose |
-| --- | --- | --- |
-| `/admin-dashboard` | Admin dashboard | Platform administration overview |
-| `/admin/hospitals` | Hospital approvals | Review hospital registrations |
-| `/admin/users` | User management | Roles, status, and accounts |
-| `/admin/audit-logs` | Audit logs | Trace sensitive actions |
-
-### 4.6 Shared Authenticated Pages
-
-| Route | Page | Purpose |
-| --- | --- | --- |
-| `/notifications` | Notifications | In-app notifications and preferences |
-
-## 5. Component Patterns
-
-### 5.1 Buttons
-
-| Type | Style |
-| --- | --- |
-| Primary | Red background, white text, 4px radius, dark red hover |
-| Secondary | White background, red border and text, red fill on hover |
-| Danger | Red border/text, solid red on hover |
-| Pill | Rounded full, used in the hero |
-
-Rules:
-
-- One primary action per section.
-- Use sentence case for labels.
-- Keep button height consistent within a form.
-- Disable buttons while submitting and show a clear loading label.
-
-### 5.2 Cards
-
-- White surface, 8px radius, soft shadow.
-- Optional red top or left accent border for emphasis.
-- Hover lift is reserved for interactive cards such as audience cards.
-
-### 5.3 Forms
-
-- Labels above inputs, bold.
-- Inputs are full width with 12px padding and 6px radius.
-- Focus state uses a red border and a soft red glow.
-- Group related fields into `form-section` blocks with a heading.
-- Show validation messages close to the field.
-- Use helper text for sensitive fields such as passwords and medical data.
-
-### 5.4 Tables
-
-- Used for inventory and administrative lists.
-- Header row uses the primary red with white text.
-- Rows use thin neutral dividers.
-- Tables scroll horizontally on small screens.
-- Actions are compact secondary buttons.
-
-### 5.5 Status Badges
-
-- Rounded pill shape.
-- Text is short and uppercase or title case.
-- Color reflects pending, approved, rejected, or informational state.
-
-### 5.6 Alerts and Notices
-
-- Success: light green background with green text.
-- Error: light red background with red text.
-- Warning: soft yellow or red-soft background.
-- Medical and consent notices use a left red accent border.
-- Unread notifications use a soft red background and left accent.
-
-### 5.7 Lists
-
-- Simple vertical lists with 8–12px spacing.
-- Dashboard activity links are charcoal, not bright red, to keep the page calm.
-- Secondary metadata uses muted text and a smaller size.
-
-## 6. Interaction States
-
-Each data-driven screen should account for:
-
-| State | UI treatment |
-| --- | --- |
-| Loading | Status text such as "Loading…" or a disabled submit button |
-| Empty | Short explanatory message and a next action |
-| Error | Inline alert with a retry or correction path |
-| Success | Confirmation alert or updated status badge |
-| Disabled | Reduced emphasis and no pointer interaction |
-
-## 7. Responsive Design
+## 4. Layout and responsive rules
 
 | Breakpoint | Behavior |
-| --- | --- |
-| `> 768px` | Full navigation, split hero, multi-column cards |
-| `≤ 768px` | Navigation wraps, hero stacks, sections reduce padding, forms remain single column |
-| `≤ 560px` | Login choices collapse to one column, containers become full width, headings reduce in size |
+|---|---|
+| Desktop (1024 px and up) | Content max-width 1100–1180 px, 3–4 column card grids, forms max 820 px |
+| Tablet (769–1023 px) | Grids fall to 2 columns (`auto-fit, minmax(240px, 1fr)`) |
+| Mobile (768 px and below) | Single column, padding 1–1.6 rem, link bar wraps, phone and time inputs go full width, report rows stack |
+| Tables | Scroll horizontally inside `.table-wrapper`; page never scrolls sideways |
 
-Guidelines:
+---
 
-- Keep tap targets at least 44px high.
-- Avoid horizontal scrolling except inside tables.
-- Let text wrap naturally; do not truncate critical medical labels.
+## 5. Page inventory and wireframes
 
-## 8. Accessibility
+### 5.1 Public pages
 
-- Use semantic elements and real buttons/links.
-- Every input must have a visible label.
-- Maintain sufficient color contrast, especially for muted text on white.
-- Do not rely on color alone to communicate status; include a text label.
-- Provide meaningful `alt` text for images.
-- Keep focus styles visible.
-- Announce errors in text near the relevant control.
-- Ensure forms are usable with keyboard-only navigation.
+| Route | Page | Main content |
+|---|---|---|
+| `/` | Home | Hero, About, Who can use, Why MEKAKEL, How it works, Call to action, Footer |
+| `/login` | Login | Individual / Hospital switch, email, password, forgot link |
+| `/register` | Register | Medical warning, then account-type form |
+| `/forgot-password`, `/reset-password` | Password recovery | Email form, then new password with show toggle |
 
-## 9. Content and Tone
+**Home**
+```
++--------------------------------------------------------------+
+| MEKAKEL                                                      |  white logo row
++--------------------------------------------------------------+
+| HOME   ABOUT   HOW IT WORKS   LOGIN                          |  red link bar
++--------------------------------------------------------------+
+|                 FIND BLOOD, SAVE LIVES                       |
+|        (one line of purpose)   [Become a donor] [Hospital]   |  hero, dark-red overlay
++--------------------------------------------------------------+
+|                 Who can use MEKAKEL?                         |
+| [Donors] [Hospitals] [Doctors] [Administrators]              |  4 cards
++--------------------------------------------------------------+
+|        Why MEKAKEL  (01)(02)(03) numbered cards              |
++--------------------------------------------------------------+
+|        How it works  (white card, red-bar subheadings)       |
++--------------------------------------------------------------+
+|        Every minute matters   [Join now]   (red band)        |
++--------------------------------------------------------------+
+| footer                                                       |
++--------------------------------------------------------------+
+```
 
-- Use direct, reassuring language.
-- Prefer "can", "may", and "will" over alarming phrasing.
-- Explain medical limitations clearly.
-- Keep labels short and action-oriented.
-- Use Ethiopian address conventions where relevant: subcity and wereda.
-- Avoid implying that MEKAKEL provides or guarantees blood.
+**Login**
+```
+          +---------------------------------------+
+          | ▔▔▔▔▔▔▔▔▔ red top border ▔▔▔▔▔▔▔▔▔▔▔ |
+          |            Welcome back               |
+          |   [ Individual ]   [ Hospital ]       |
+          |   Email     [______________________]  |
+          |   Password  [______________________]  |
+          |   [            Log in               ] |
+          |   Forgot password? · Create account   |
+          +---------------------------------------+
+```
 
-## 10. Design Constraints and Future Improvements
+### 5.2 Donor area
 
-Current constraints:
+| Route | Page |
+|---|---|
+| `/donor-dashboard` | Verification status, eligibility, availability, quick links |
+| `/donor/profile` | Personal data, body measurements, privacy toggles |
+| `/donor/availability` | Weekly schedule (day, time) |
+| `/donor/medical-reports` | Upload and status list |
+| `/donor/history` | Donation records |
 
-- Styling is a mix of semantic CSS classes and Tailwind.
-- Some pages use dense forms that could benefit from progressive disclosure.
-- Notification updates require navigation or refresh.
+```
+Donor dashboard
++---------------------------+  +---------------------------+
+| Verification  [Pending]   |  | Eligibility               |
+| A doctor is reviewing...  |  | Age 18+            Passed |
++---------------------------+  | Weight 50 kg+      Passed |
++---------------------------+  | 90-day interval    Not yet|
+| Availability              |  +---------------------------+
+| Mon 08:00 · Wed 14:00 ... |  +---------------------------+
++---------------------------+  | Quick links →  →  →       |
+                               +---------------------------+
+```
 
-Future improvements:
+### 5.3 Hospital area
 
-- A shared design-system component library.
-- Skeleton loaders instead of plain loading text.
-- More consistent empty-state illustrations.
-- Mobile-first table alternatives.
-- Dark mode with carefully validated medical status colors.
-- Accessibility audit and automated visual regression tests.
-- Localization for Amharic and other languages.
+| Route | Page |
+|---|---|
+| `/hospital-dashboard` | Stock summary, open requests, expiry alerts |
+| `/hospital/profile`, `/hospital/search` | Profile and staff; nearby hospital and donor search |
+| `/hospital/inventory` | Unit table with filters, add / edit unit |
+| `/hospital/requests`, `/requests/new`, `/requests/:id` | Request list, form, detail |
+| `/hospital/requests/:id/matches` | Ranked units and donors, reserve actions |
+| `/hospital/reservations` | Active reservations with confirm / cancel |
+| `/hospital/transfers`, `/transfers/:id` | Transfer list and timeline |
+
+```
+Matching results
+< Back to requests
+Matching results  [EMERGENCY]
+Request: O negative · Red cells · 2 units
+[Compatible units] [Compatible donors] [Required] [Shortfall]   summary tiles
++--------------------------------------------------------------+
+| Blood units (FEFO order)                                     |
+| RANK | BAG ID | TYPE | EXPIRES | HOSPITAL      |             |
+| 1    | ...    | O-   | 4 days  | Own hospital  | [Reserve]   |
++--------------------------------------------------------------+
+| Compatible donors   name · reasons · [Score 78]              |
++--------------------------------------------------------------+
+```
+
+### 5.4 Doctor and administrator areas
+
+| Route | Page |
+|---|---|
+| `/doctor-dashboard`, `/doctor/verifications`, `/doctor/verifications/:id` | Queue of pending reports; decision form (Verified, Rejected with reason, More information) |
+| `/admin-dashboard` | Platform overview |
+| `/admin/hospitals` | Pending hospitals, approve / reject / suspend with notes |
+| `/admin/users` | Users, roles, activate / deactivate |
+| `/admin/audit-logs` | Filter bar and log table |
+| `/notifications` | Notification list and preferences (all roles) |
+
+---
+
+## 6. States and feedback
+
+| State | Treatment |
+|---|---|
+| Loading | Short text or skeleton inside the card; buttons show disabled style |
+| Empty | One sentence explaining what will appear and the action to fill it |
+| Error | `.register-error` box above the form; field-level message under the field |
+| Success | `.register-success` box; redirect after account actions |
+| Disabled | Grey fill, `not-allowed` cursor, 70% opacity |
+| Destructive action | Secondary danger button with a confirmation step |
+
+Status vocabulary shown to users: Pending, Verified, Rejected, Additional information required, Available, Reserved, Expired, Requested, Approved, Dispatched, Received, Completed, Cancelled.
+
+---
+
+## 7. Accessibility checklist
+
+- Text contrast 4.5:1 or higher (white on `#c8190b` is about 5.9:1; muted text `#6b6b72` on white is about 5.2:1).
+- Every input has a visible label; errors are written text, not color only.
+- `:focus-visible` shows a 3 px red ring on every interactive element.
+- Status badges carry words as well as color.
+- Motion is removed under `prefers-reduced-motion`.
+- Tap targets are at least 40 px high; tables are scrollable by keyboard.
+
+---
+
+## 8. Implementation notes
+
+- Brand tokens live in `:root` of `frontend/src/index.css`; change a color once and the whole UI follows.
+- Base resets sit in `@layer base`, so Tailwind utility classes still override component styles.
+- Fonts load from Google Fonts (Montserrat 500–800, Poppins 400–600) with Arial as fallback.
+- Mockups for Home, Login, Donor dashboard and Matching results are in the UI Design canvas.
+- Not yet designed: inventory form, transfer timeline, admin tables, doctor review screen and notification preferences.
