@@ -31,10 +31,10 @@ RUN DATABASE_URL="postgresql://build@localhost:5432/mekakel" npx prisma generate
 
 COPY --from=build /app/dist ./dist
 
-RUN npm prune --omit=dev
-&& npm cache clean --force
-&& mkdir -p /app/private-uploads
-&& chown -R node /app
+RUN npm prune --omit=dev \
+    && npm cache clean --force \
+    && mkdir -p /app/private-uploads \
+    && chown -R node /app
 
 USER node
 
