@@ -70,19 +70,13 @@ The current project scope has been implemented and deployed.
 
 ## Live Website
 
-Visit the deployed MEKAKEL platform:
-
-🌐 [MEKAKEL – Live Website](https://mekakel.vercel.app/)
+🌐 [Visit MEKAKEL](https://mekakel.vercel.app/)
 
 ## Project Documentation
 
-Read the complete project documentation:
-
-📄 [View MEKAKEL Project Documentation (PDF)](./documents/mekakel.pdf)
+📄 [View MEKAKEL Project Documentation (PDF)](./docs/MEKAKEL.pdf)
 
 ## Project Demonstration
-
-Watch the project demonstration video:
 
 🎥 [Watch MEKAKEL Project Demonstration](https://drive.google.com/file/d/1W83VcSbIzeXj6ZD51qSyfl-ismFSZkJY/view?usp=sharing)
 
@@ -92,8 +86,8 @@ Watch the project demonstration video:
 mekakel/
 ├── frontend/
 ├── backend/
-├── documents/
-│   └── mekakel.pdf
+├── docs/
+│   └── MEKAKEL.pdf
 └── README.md
 ```
 
