@@ -74,7 +74,7 @@ The current project scope has been implemented and deployed.
 
 ## Project Documentation
 
-📄 [View MEKAKEL Project Documentation (PDF)](./docs/MEKAKEL.pdf)
+📄 📄 [View MEKAKEL Project Documentation (PDF)](https://github.com/helena0904/mekakel/blob/feature/report-authorization/docs/MEKAKEL.pdf?raw=true)
 
 ## Project Demonstration
 
